@@ -26,8 +26,7 @@
 3. 时间戳范围确定与数据筛选
 4. 激光数据坐标转换（从激光坐标系到世界坐标系）
 5. 占用栅格地图构建
-6. 形态学处理与优化
-7. 地图可视化
+6. 地图可视化
 
 ## 3. 问题分析与解决方案
 
@@ -168,22 +167,6 @@ if len(green_box_indices) > 0:
 # 绿框区域（x坐标约-10到0，y坐标约10到20）使用极高的阈值
 if -10 <= world_x <= 0 and 10 <= world_y <= 20:
     local_threshold = max(5, threshold + 4)  # 极其严格的阈值
-```
-
-3. 形态学处理：
-
-```python
-# 应用形态学处理清理噪声
-try:
-    from scipy import ndimage
-    
-    # 应用更强的形态学清理到绿框区域
-    green_box_points = self.grid_map & green_box_map
-    cleaned_green_box = ndimage.binary_erosion(green_box_points, iterations=2)
-    cleaned_green_box = ndimage.binary_dilation(cleaned_green_box, iterations=1)
-    
-    # 保持原地图不变，仅更新绿框区域
-    self.grid_map = self.grid_map * (1 - green_box_map) + cleaned_green_box
 ```
 
 通过这些针对性的处理策略，显著减少了终点区域的错误障碍点。

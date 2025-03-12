@@ -468,8 +468,8 @@ def main():
         save_path = "./work2/occupancy_grid.png"
     
     print(f"6. 正在可视化占用栅格地图并保存至 {save_path}")
-    print("   - 绿色区域表示障碍物")
-    print("   - 黑色区域表示空闲空间")
+    print("   - 红色区域表示障碍物")
+    print("   - 白色区域表示空闲空间")
     
     # 可视化结果
     grid_mapper.visualize_map(robot_trajectory, save_path=save_path)
