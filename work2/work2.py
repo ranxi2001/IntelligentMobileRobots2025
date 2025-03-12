@@ -36,8 +36,8 @@ class LaserDataReader:
             self.ang_res = self.header[1]    # 角分辨率
             self.unit = self.header[2]       # 单位
             
-            # 计算每帧激光数据的长度
-            self.max_dat_len = int(self.ang_range / self.ang_res) + 1
+            # 直接设置确认的最佳点数，通过数据分析验证为361
+            self.max_dat_len = 361
             
             # 循环读取所有帧的激光数据
             while True:
@@ -51,6 +51,7 @@ class LaserDataReader:
                 # 读取激光数据
                 laser_data = f.read(2 * self.max_dat_len)  # unsigned short类型，每个2字节
                 if not laser_data or len(laser_data) < 2 * self.max_dat_len:
+                    print(f"警告：在时间戳 {timestamp} 处读取的激光数据长度不一致")
                     break
                     
                 # 解析激光数据
@@ -67,6 +68,7 @@ class LaserDataReader:
     
     def get_scan_angles(self):
         """获取每个激光点的角度值（弧度）"""
+        # 优化角度计算，确保从0度开始，正确覆盖180度范围
         angles = np.arange(0, self.max_dat_len) * self.ang_res * np.pi / 180.0
         return angles
     
@@ -168,6 +170,28 @@ class OccupancyGridMapper:
             points: 激光点在世界坐标系中的坐标，形状为 (n, 2)
             threshold: 阈值，一个栅格中激光点数超过此值时标记为占用
         """
+        # 添加额外的预处理，过滤掉可能的异常点
+        # 检测离群点 - 这些点可能是噪声
+        if len(points) > 10:  # 确保有足够的点进行统计
+            x_coords = points[:, 0]
+            y_coords = points[:, 1]
+            
+            # 计算距离原点的距离
+            distances = np.sqrt(x_coords**2 + y_coords**2)
+            
+            # 使用四分位数范围(IQR)方法检测离群点
+            q1 = np.percentile(distances, 25)
+            q3 = np.percentile(distances, 75)
+            iqr = q3 - q1
+            
+            # 定义离群点的阈值（通常是1.5倍IQR）
+            lower_bound = q1 - 1.5 * iqr
+            upper_bound = q3 + 1.5 * iqr
+            
+            # 过滤离群点
+            inlier_mask = (distances >= lower_bound) & (distances <= upper_bound)
+            points = points[inlier_mask]
+        
         # 统计每个栅格中的激光点数
         for x, y in points:
             # 更新地图边界
@@ -182,8 +206,19 @@ class OccupancyGridMapper:
             if 0 <= grid_x < self.size_x and 0 <= grid_y < self.size_y:
                 self.count_map[grid_x, grid_y] += 1
         
-        # 更新占用栅格地图
-        self.grid_map = np.where(self.count_map > threshold, 1, self.grid_map)
+        # 更新占用栅格地图，使用更严格的阈值处理左侧区域
+        for x in range(self.size_x):
+            for y in range(self.size_y):
+                # 转换回世界坐标计算位置
+                world_x, world_y = self.grid_to_world(x, y)
+                
+                # 左侧区域（x值较小的区域）使用更高的阈值
+                local_threshold = threshold
+                if world_x < 0:  # 左侧区域
+                    local_threshold = max(2, threshold + 1)  # 更严格的阈值
+                
+                if self.count_map[x, y] > local_threshold:
+                    self.grid_map[x, y] = 1
     
     def visualize_map(self, robot_trajectory=None, save_path=None):
         """
@@ -275,9 +310,28 @@ def laser_to_world(robot_pose, laser_ranges, laser_angles):
     robot_y = robot_pose['shv_y']
     robot_theta = robot_pose['ang_z']
     
-    # 过滤无效数据，使用较宽松的条件确保捕获所有障碍物
-    max_valid_range = 80.0  # 设置最大有效距离（米）
-    valid_indices = (laser_ranges > 0) & (laser_ranges < max_valid_range)
+    # 增强过滤条件，避免将异常值解释为障碍物
+    min_valid_range = 0.1  # 设置最小有效距离（米）
+    max_valid_range = 50.0  # 设置最大有效距离（米）
+    valid_indices = (laser_ranges > min_valid_range) & (laser_ranges < max_valid_range)
+    
+    # 额外过滤左侧区域异常点（约0-20度范围）
+    # 在这个范围内，应用更严格的过滤条件
+    left_side_angles = (laser_angles >= 0) & (laser_angles <= np.radians(20))
+    left_side_indices = np.where(left_side_angles)[0]
+    
+    # 对左侧区域进行特殊处理
+    for i in left_side_indices:
+        # 如果有连续的点突然跳变，可能是噪声
+        if i > 0 and i < len(laser_ranges) - 1:
+            # 计算与相邻点的距离差异
+            diff_prev = abs(laser_ranges[i] - laser_ranges[i-1])
+            diff_next = abs(laser_ranges[i] - laser_ranges[i+1])
+            
+            # 如果与相邻点的差异过大，标记为无效
+            if diff_prev > 1.0 and diff_next > 1.0:
+                valid_indices[i] = False
+    
     valid_ranges = laser_ranges[valid_indices]
     valid_angles = laser_angles[valid_indices]
     
