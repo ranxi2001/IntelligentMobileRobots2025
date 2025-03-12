@@ -615,6 +615,154 @@ class LaserDataPreprocessor:
         
         self.log("\n分析完成时间: " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
+    def export_to_csv(self, output_file=None, include_cartesian=False):
+        """将激光雷达扫描数据导出为CSV格式，每行代表一次采样帧
+        
+        参数:
+            output_file (str): 输出CSV文件的路径，默认为与输入文件同名但扩展名为.csv
+            include_cartesian (bool): 是否包含转换后的笛卡尔坐标，默认为False
+        
+        返回:
+            str: 导出文件的路径
+        """
+        if not self.scans:
+            self.log("错误：没有可用的扫描数据，请先调用read_lms_file()方法")
+            return None
+            
+        # 设置输出文件路径
+        if output_file is None:
+            base_name = os.path.splitext(self.lms_file)[0]
+            output_file = f"{base_name}.csv"
+        
+        self.log(f"\n===== 导出扫描数据到CSV文件 =====")
+        self.log(f"输出文件: {output_file}")
+        
+        # 计算角度值（如果需要笛卡尔坐标）
+        header_info = self.read_header() if self.header is None else {
+            'ang_range': self.header[0],
+            'ang_res': self.header[1],
+            'unit': self.header[2],
+            'max_dat_len': int(self.header[0] / self.header[1]) + 1
+        }
+        
+        with open(output_file, 'w', encoding='utf-8') as f:
+            # 写入CSV文件头
+            # 首先是基本信息注释
+            f.write(f"# 激光雷达数据文件: {os.path.basename(self.lms_file)}\n")
+            f.write(f"# 角度范围: {header_info['ang_range']} 度\n")
+            f.write(f"# 角分辨率: {header_info['ang_res']} 度\n")
+            f.write(f"# 距离单位: {header_info['unit']}\n")
+            f.write(f"# 导出时间: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"# 总帧数: {len(self.scans)}\n")
+            f.write(f"# 数据格式: 帧索引,时间戳,距离值1,距离值2,...\n")
+            if include_cartesian:
+                f.write(f"# 注意: 后面部分包含笛卡尔坐标 (x1,y1,x2,y2,...)\n")
+            f.write("#\n")
+            
+            # 写入每一帧的数据
+            for scan in self.scans:
+                # 基本数据：帧索引和时间戳
+                line = f"{scan['frame_index']},{scan['timestamp']}"
+                
+                # 添加所有距离值
+                for distance in scan['laser_data']:
+                    line += f",{distance}"
+                
+                # 如果需要，添加笛卡尔坐标
+                if include_cartesian:
+                    # 计算角度（弧度）
+                    angles = np.arange(0, len(scan['laser_data'])) * header_info['ang_res'] * np.pi / 180.0
+                    
+                    # 将激光数据转换为距离（米）
+                    distances = scan['laser_data'] / header_info['unit']
+                    
+                    # 转换为笛卡尔坐标
+                    x = distances * np.cos(angles)
+                    y = distances * np.sin(angles)
+                    
+                    # 添加坐标到输出行
+                    for i in range(len(x)):
+                        line += f",{x[i]:.4f},{y[i]:.4f}"
+                
+                # 写入这一行
+                f.write(line + "\n")
+        
+        self.log(f"成功导出 {len(self.scans)} 帧激光雷达数据到 {output_file}")
+        return output_file
+        
+    def export_to_txt(self, output_file=None, format_type="simple"):
+        """将激光雷达扫描数据导出为TXT格式，每行代表一次采样帧
+        
+        参数:
+            output_file (str): 输出TXT文件的路径，默认为与输入文件同名但扩展名为.txt
+            format_type (str): 格式类型，可选值为：
+                             - "simple": 简单格式，每行仅包含时间戳和距离值
+                             - "readable": 可读格式，每帧占用多行，包含详细信息
+        
+        返回:
+            str: 导出文件的路径
+        """
+        if not self.scans:
+            self.log("错误：没有可用的扫描数据，请先调用read_lms_file()方法")
+            return None
+            
+        # 设置输出文件路径
+        if output_file is None:
+            base_name = os.path.splitext(self.lms_file)[0]
+            output_file = f"{base_name}_{format_type}.txt"
+        
+        self.log(f"\n===== 导出扫描数据到TXT文件 ({format_type}格式) =====")
+        self.log(f"输出文件: {output_file}")
+        
+        header_info = self.read_header() if self.header is None else {
+            'ang_range': self.header[0],
+            'ang_res': self.header[1],
+            'unit': self.header[2],
+            'max_dat_len': int(self.header[0] / self.header[1]) + 1
+        }
+        
+        with open(output_file, 'w', encoding='utf-8') as f:
+            # 写入文件头
+            f.write(f"激光雷达数据文件: {os.path.basename(self.lms_file)}\n")
+            f.write(f"角度范围: {header_info['ang_range']} 度\n")
+            f.write(f"角分辨率: {header_info['ang_res']} 度\n")
+            f.write(f"距离单位: {header_info['unit']}\n")
+            f.write(f"导出时间: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"总帧数: {len(self.scans)}\n")
+            f.write("\n")
+            
+            if format_type == "simple":
+                # 简单格式，每行一帧
+                for scan in self.scans:
+                    # 基本数据：帧索引和时间戳
+                    line = f"{scan['frame_index']} {scan['timestamp']}"
+                    
+                    # 添加所有距离值
+                    for distance in scan['laser_data']:
+                        line += f" {distance}"
+                    
+                    # 写入这一行
+                    f.write(line + "\n")
+            
+            elif format_type == "readable":
+                # 可读格式，每帧占用多行
+                for scan in self.scans:
+                    f.write(f"帧索引: {scan['frame_index']}\n")
+                    f.write(f"时间戳: {scan['timestamp']}\n")
+                    
+                    # 计算角度（度）
+                    angles = np.arange(0, len(scan['laser_data'])) * header_info['ang_res']
+                    
+                    # 输出角度和距离对
+                    f.write("点索引 角度(度) 距离值\n")
+                    for i, (angle, distance) in enumerate(zip(angles, scan['laser_data'])):
+                        f.write(f"{i} {angle:.2f} {distance}\n")
+                    
+                    f.write("\n" + "-"*40 + "\n\n")
+        
+        self.log(f"成功导出 {len(self.scans)} 帧激光雷达数据到 {output_file}")
+        return output_file
+
 
 # 示例用法
 if __name__ == "__main__":

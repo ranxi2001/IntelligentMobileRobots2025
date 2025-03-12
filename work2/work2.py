@@ -409,11 +409,30 @@ def main():
     
     # 处理每一帧激光数据
     print("4. 开始处理激光雷达数据...")
+    
+    # 确定轨迹数据的时间戳范围
+    if len(trajectory_reader.trajectory) > 0:
+        nav_start_time = trajectory_reader.trajectory[0]['timestamp']
+        nav_end_time = trajectory_reader.trajectory[-1]['timestamp']
+        print(f"   - 轨迹数据时间范围: {nav_start_time} - {nav_end_time}")
+    else:
+        print("错误: 没有可用的轨迹数据")
+        return
+    
+    # 筛选在轨迹时间范围内的激光数据
+    valid_scans = []
+    for scan in laser_reader.scans:
+        if nav_start_time <= scan['timestamp'] <= nav_end_time:
+            valid_scans.append(scan)
+    
+    print(f"   - 总激光帧数: {len(laser_reader.scans)}")
+    print(f"   - 有效激光帧数(在轨迹时间范围内): {len(valid_scans)}")
+    
     print("   - 将激光点从激光坐标系转换到全局坐标系")
     print("   - 更新占用栅格地图")
     
     # 设置进度显示间隔
-    process_interval = max(1, len(laser_reader.scans) // 20)
+    process_interval = max(1, len(valid_scans) // 20)
     
     # 首先收集所有轨迹点
     print("   - 收集轨迹信息并预估地图边界")
@@ -421,7 +440,7 @@ def main():
         robot_trajectory.append((pose['shv_x'], pose['shv_y']))
     
     # 开始处理激光扫描数据
-    for i, scan in enumerate(laser_reader.scans):
+    for i, scan in enumerate(valid_scans):
         # 找到对应的机器人姿态
         pose = trajectory_reader.find_closest_pose(scan['timestamp'])
         if pose is None:
@@ -438,7 +457,7 @@ def main():
         
         # 打印进度
         if i % process_interval == 0:
-            progress = (i + 1) / len(laser_reader.scans) * 100
+            progress = (i + 1) / len(valid_scans) * 100
             print(f"   处理进度: {progress:.1f}%")
     
     print("5. 处理完成！")
