@@ -431,6 +431,14 @@ class LmsMapperNode(Node):
         self.first_scan_received = False
         self.last_scan_time = None
         
+        # 添加进度跟踪
+        self.start_time = time.time()
+        self.last_saved_time = self.start_time
+        self.save_interval = 30  # 每30秒保存一次中间结果
+        self.checkpoint_counter = 0
+        self.processed_scans = 0
+        self.processed_points = 0
+        
         # 创建订阅
         self.scan_subscription = self.create_subscription(
             LaserScan,
@@ -454,6 +462,9 @@ class LmsMapperNode(Node):
         
         # 创建地图更新定时器
         self.map_timer = self.create_timer(1.0, self.publish_map)  # 每秒发布一次地图
+        
+        # 添加进度更新和中间结果保存定时器
+        self.progress_timer = self.create_timer(5.0, self.update_progress)  # 每5秒更新一次进度
         
         self.get_logger().info('LMS mapper node已启动')
     
@@ -508,6 +519,9 @@ class LmsMapperNode(Node):
                 self._scan_count = 0
             self._scan_count += 1
             
+            # 更新处理统计
+            self.processed_scans += 1
+            
             # 每50个消息才打印一次详细信息
             log_interval = 50
             should_log_details = self._scan_count % log_interval == 0
@@ -551,28 +565,33 @@ class LmsMapperNode(Node):
             if time_diff < 10:  # 小于10毫秒认为是重复帧
                 return
             
-            # 获取激光扫描数据
-            ranges = np.array(msg.ranges)
+            # 获取激光扫描数据 - 使用numpy更高效地处理
+            ranges = np.array(msg.ranges, dtype=np.float32)  # 明确指定数据类型以提高性能
             angle_min = msg.angle_min
             angle_increment = msg.angle_increment
-            angles = np.arange(len(ranges)) * angle_increment + angle_min
+            angles = np.arange(len(ranges), dtype=np.float32) * angle_increment + angle_min
             
             # 添加调试信息
             if should_log_details and len(ranges) > 0:
                 self.get_logger().info(f'接收到激光数据: {len(ranges)}个点, 角度范围=[{angle_min:.2f}, {angle_min + angle_increment * (len(ranges)-1):.2f}]')
             
-            # 更严格的数据过滤
+            # 更严格的数据过滤 - 使用numpy高效处理
             valid_indices = ~np.isnan(ranges) & ~np.isinf(ranges) & (ranges > 0.1) & (ranges < 30.0)
+            valid_count = np.sum(valid_indices)
             
             # 检查有效点百分比
-            valid_percent = np.sum(valid_indices) / len(ranges) * 100
+            valid_percent = valid_count / len(ranges) * 100
             if valid_percent < 10:  # 如果有效点太少，可能是异常帧
                 if should_log_details:
                     self.get_logger().warn(f'有效激光点比例过低: {valid_percent:.1f}%，可能是异常帧，跳过处理')
                 return
             
+            # 使用布尔索引更高效地提取有效数据
             valid_ranges = ranges[valid_indices]
             valid_angles = angles[valid_indices]
+            
+            # 更新处理点数统计
+            self.processed_points += len(valid_ranges)
             
             if len(valid_ranges) == 0:
                 if should_log_details:
@@ -582,7 +601,7 @@ class LmsMapperNode(Node):
             if should_log_details:
                 self.get_logger().info(f'有效激光点: {len(valid_ranges)}/{len(ranges)}')
             
-            # 转换激光点到机器人坐标系
+            # 转换激光点到机器人坐标系 - 使用numpy向量化操作
             laser_x = valid_ranges * np.cos(valid_angles)
             laser_y = valid_ranges * np.sin(valid_angles)
             
@@ -599,7 +618,7 @@ class LmsMapperNode(Node):
             robot_y = self.latest_pose['y']
             robot_theta = self.latest_pose['theta']
             
-            # 转换到世界坐标系
+            # 转换到世界坐标系 - 使用numpy向量化操作
             cos_theta = np.cos(robot_theta)
             sin_theta = np.sin(robot_theta)
             world_x = robot_x + laser_x * cos_theta - laser_y * sin_theta
@@ -613,17 +632,19 @@ class LmsMapperNode(Node):
                 world_x = world_x[valid_mask]
                 world_y = world_y[valid_mask]
             
-            # 检查范围是否合理
+            # 检查范围是否合理 - 使用numpy向量化操作
             valid_mask = (np.abs(world_x) < 100.0) & (np.abs(world_y) < 100.0)
-            if not np.all(valid_mask) and should_log_details:
-                self.get_logger().warn(f'检测到{np.sum(~valid_mask)}个超出合理范围的点，将被过滤')
+            if not np.all(valid_mask):
+                if should_log_details:
+                    self.get_logger().warn(f'检测到{np.sum(~valid_mask)}个超出合理范围的点，将被过滤')
                 world_x = world_x[valid_mask]
                 world_y = world_y[valid_mask]
             
-            # 更新占用栅格地图
+            # 更新占用栅格地图 - 使用高效的批量处理
             if len(world_x) > 0:
                 world_points = np.column_stack((world_x, world_y))
-                self.update_map_batch(world_points)
+                # 使用优化后的update_map方法处理批量点
+                self.update_map(world_points)
                 # 添加调试信息
                 if should_log_details:
                     self.get_logger().info(f'更新地图: 添加了{len(world_points)}个点')
@@ -638,44 +659,104 @@ class LmsMapperNode(Node):
     
     def update_map(self, points):
         """更新占用栅格地图"""
-        points_added = 0
-        
-        for x, y in points:
-            # 更新地图边界
-            self.min_x = min(self.min_x, x)
-            self.max_x = max(self.max_x, x)
-            self.min_y = min(self.min_y, y)
-            self.max_y = max(self.max_y, y)
-            
-            # 转换为栅格坐标
-            grid_x, grid_y = self.world_to_grid(x, y)
-            
-            # 检查是否在地图范围内
-            if 0 <= grid_x < self.size_x and 0 <= grid_y < self.size_y:
-                # 累积计数
-                key = (grid_x, grid_y)
-                self.occupancy_count[key] = self.occupancy_count.get(key, 0) + 1
+        try:
+            if len(points) == 0:
+                return
                 
-                # 更新栅格地图
-                if self.occupancy_count[key] > self.threshold:
-                    if self.grid_map[grid_x, grid_y] == 0:  # 只有当格子状态改变时才计数
-                        points_added += 1
-                    self.grid_map[grid_x, grid_y] = 1
-        
-        # 降低日志频率，提高处理速度
-        if points_added > 50:  # 只有当添加了大量新点时才记录
-            self.get_logger().info(f'添加了{points_added}个新障碍物点到地图')
-        
-        # 定期打印地图统计信息，从每100个改为每500个障碍物单元格打印一次
-        if not hasattr(self, '_map_stats_count'):
-            self._map_stats_count = 0
-        
-        total_obstacle_cells = np.sum(self.grid_map == 1)
-        
-        # 如果障碍物数量与上次统计相比增加了500个以上，或者是初次统计
-        if self._map_stats_count == 0 or total_obstacle_cells - self._map_stats_count >= 500:
-            self.get_logger().info(f'地图统计: 障碍物单元格={total_obstacle_cells}, 地图边界=[{self.min_x:.1f}, {self.max_x:.1f}]x[{self.min_y:.1f}, {self.max_y:.1f}]')
-            self._map_stats_count = total_obstacle_cells
+            points_added = 0
+            
+            # 对于批量点，优化处理方式
+            if isinstance(points, np.ndarray) and points.ndim == 2 and points.shape[1] == 2 and len(points) > 10:
+                # 更新地图边界
+                min_x = np.min(points[:, 0])
+                max_x = np.max(points[:, 0])
+                min_y = np.min(points[:, 1])
+                max_y = np.max(points[:, 1])
+                
+                self.min_x = min(self.min_x, min_x)
+                self.max_x = max(self.max_x, max_x)
+                self.min_y = min(self.min_y, min_y)
+                self.max_y = max(self.max_y, max_y)
+                
+                # 批量转换为栅格坐标
+                grid_x = np.clip(
+                    (self.origin_x + points[:, 0] / self.resolution).astype(np.int32),
+                    0, self.size_x - 1
+                )
+                grid_y = np.clip(
+                    (self.origin_y + points[:, 1] / self.resolution).astype(np.int32),
+                    0, self.size_y - 1
+                )
+                
+                # 合并坐标为元组键
+                from collections import Counter
+                grid_coords = list(zip(grid_x, grid_y))
+                
+                # 计算每个坐标出现的次数
+                coord_counts = Counter(grid_coords)
+                
+                # 更新地图
+                for (gx, gy), count in coord_counts.items():
+                    key = (gx, gy)
+                    # 累积计数
+                    self.occupancy_count[key] = self.occupancy_count.get(key, 0) + count
+                    
+                    # 更新栅格
+                    if self.occupancy_count[key] > self.threshold:
+                        if self.grid_map[gx, gy] == 0:  # 只有当格子状态改变时才计数
+                            points_added += 1
+                        self.grid_map[gx, gy] = 1
+            else:
+                # 传统的点一个个处理
+                for x, y in points:
+                    # 更新地图边界
+                    self.min_x = min(self.min_x, x)
+                    self.max_x = max(self.max_x, x)
+                    self.min_y = min(self.min_y, y)
+                    self.max_y = max(self.max_y, y)
+                    
+                    # 转换为栅格坐标
+                    grid_x, grid_y = self.world_to_grid(x, y)
+                    
+                    # 检查是否在地图范围内
+                    if 0 <= grid_x < self.size_x and 0 <= grid_y < self.size_y:
+                        # 累积计数
+                        key = (grid_x, grid_y)
+                        self.occupancy_count[key] = self.occupancy_count.get(key, 0) + 1
+                        
+                        # 更新栅格地图
+                        if self.occupancy_count[key] > self.threshold:
+                            if self.grid_map[grid_x, grid_y] == 0:  # 只有当格子状态改变时才计数
+                                points_added += 1
+                            self.grid_map[grid_x, grid_y] = 1
+            
+            # 降低日志频率，提高处理速度
+            if points_added > 50:  # 只有当添加了大量新点时才记录
+                self.get_logger().info(f'添加了{points_added}个新障碍物点到地图')
+            
+            # 定期打印地图统计信息，从每100个改为每500个障碍物单元格打印一次
+            if not hasattr(self, '_map_stats_count'):
+                self._map_stats_count = 0
+            
+            total_obstacle_cells = np.sum(self.grid_map == 1)
+            
+            # 如果障碍物数量与上次统计相比增加了500个以上，或者是初次统计
+            if self._map_stats_count == 0 or total_obstacle_cells - self._map_stats_count >= 500:
+                self.get_logger().info(f'地图统计: 障碍物单元格={total_obstacle_cells}, 地图边界=[{self.min_x:.1f}, {self.max_x:.1f}]x[{self.min_y:.1f}, {self.max_y:.1f}]')
+                self._map_stats_count = total_obstacle_cells
+        except Exception as e:
+            self.get_logger().error(f'更新地图时出错: {str(e)}')
+            # 失败时降级到简单处理
+            try:
+                if isinstance(points, np.ndarray):
+                    for i in range(len(points)):
+                        x, y = points[i]
+                        # 简单更新
+                        grid_x, grid_y = self.world_to_grid(x, y)
+                        if 0 <= grid_x < self.size_x and 0 <= grid_y < self.size_y:
+                            self.grid_map[grid_x, grid_y] = 1
+            except:
+                self.get_logger().error('回退处理也失败')
     
     def world_to_grid(self, x, y):
         """世界坐标系转栅格坐标系"""
@@ -1002,6 +1083,89 @@ class LmsMapperNode(Node):
                 
         return points
 
+    def update_progress(self):
+        """更新和显示处理进度，并根据需要保存中间结果"""
+        try:
+            if self.min_x == float('inf'):  # 还没有数据
+                return
+                
+            current_time = time.time()
+            elapsed_time = current_time - self.start_time
+            
+            # 显示进度信息
+            self.get_logger().info(f'【进度报告】运行时间: {elapsed_time:.1f}秒, 处理扫描: {self.processed_scans}帧, 轨迹点: {len(self.robot_trajectory)}个, 障碍物格子: {np.sum(self.grid_map == 1)}个')
+            
+            # 检查是否需要保存中间结果
+            if current_time - self.last_saved_time >= self.save_interval:
+                self.save_intermediate_map()
+                self.last_saved_time = current_time
+        except Exception as e:
+            self.get_logger().error(f'更新进度信息时出错: {str(e)}')
+            
+    def save_intermediate_map(self):
+        """保存中间地图结果"""
+        try:
+            self.checkpoint_counter += 1
+            checkpoint_path = f'map_checkpoint_{self.checkpoint_counter}.png'
+            
+            # 复用save_map方法的核心逻辑，但使用不同的文件名
+            # 创建彩色地图图像
+            rgb_map = np.zeros((self.size_y, self.size_x, 3), dtype=np.uint8)
+            
+            # 白色背景
+            rgb_map.fill(255)
+            
+            # 红色表示障碍物
+            obstacle_indices = np.where(self.grid_map == 1)
+            if len(obstacle_indices[0]) > 0:
+                rgb_map[obstacle_indices[1], obstacle_indices[0]] = [255, 0, 0]  # RGB: 红色
+            
+            # 绘制机器人轨迹（绿色）
+            if self.robot_trajectory:
+                prev_x, prev_y = None, None
+                for x, y in self.robot_trajectory:
+                    try:
+                        grid_x, grid_y = self.world_to_grid(x, y)
+                        
+                        # 绘制轨迹点
+                        if 0 <= grid_x < self.size_x and 0 <= grid_y < self.size_y:
+                            # 绘制3x3的点，确保可见性
+                            for dx in [-1, 0, 1]:
+                                for dy in [-1, 0, 1]:
+                                    gx, gy = grid_x + dx, grid_y + dy
+                                    if 0 <= gx < self.size_x and 0 <= gy < self.size_y:
+                                        rgb_map[gy, gx] = [0, 255, 0]  # 绿色点
+                        
+                        # 绘制连接线
+                        if prev_x is not None and prev_y is not None:
+                            # 使用Bresenham算法绘制线段
+                            try:
+                                line_points = self.bresenham_line(prev_x, prev_y, grid_x, grid_y)
+                                for lx, ly in line_points:
+                                    if 0 <= lx < self.size_x and 0 <= ly < self.size_y:
+                                        rgb_map[ly, lx] = [0, 200, 0]  # 稍暗的绿色线
+                            except:
+                                pass
+                        
+                        prev_x, prev_y = grid_x, grid_y
+                    except:
+                        pass
+            
+            # 保存简化版的地图（不添加网格线和额外标记，减少保存时间）
+            fig = plt.figure(figsize=(12, 12))
+            try:
+                plt.imshow(rgb_map, origin='lower')
+                plt.title(f'中间地图结果 - 检查点 {self.checkpoint_counter} (时间: {(time.time() - self.start_time):.1f}秒)')
+                plt.savefig(checkpoint_path, dpi=150)  # 降低dpi以加快保存速度
+                self.get_logger().info(f'已保存中间地图到: {checkpoint_path}')
+            except Exception as e:
+                self.get_logger().error(f'保存中间地图时出错: {str(e)}')
+            finally:
+                plt.close(fig)
+                
+        except Exception as e:
+            self.get_logger().error(f'保存中间地图过程中出错: {str(e)}')
+
 
 def main(args=None):
     try:
@@ -1012,6 +1176,9 @@ def main(args=None):
         node.get_logger().info('LMS mapper node已启动，等待数据...')
         
         try:
+            # 记录开始时间
+            start_time = time.time()
+            
             # 主动处理一段时间的消息
             timeout = 0
             max_timeout = 600  # 增加最大等待时间到10分钟
@@ -1019,7 +1186,7 @@ def main(args=None):
             while rclpy.ok() and timeout < max_timeout:
                 try:
                     # 将超时时间从1.0秒减少到0.1秒，加快处理速度
-                    rclpy.spin_once(node, timeout_sec=0.1)
+                    rclpy.spin_once(node, timeout_sec=0.05)  # 进一步减少延迟
                     
                     # 检查是否已接收到数据
                     if len(node.robot_trajectory) > 0:
@@ -1045,8 +1212,18 @@ def main(args=None):
                 last_error_time = None
                 error_count = 0
                 
+                # 设置处理超时
+                processing_timeout = 300  # 默认5分钟
+                processing_start_time = time.time()
+                
                 while rclpy.ok():
                     try:
+                        # 检查是否超时
+                        current_time = time.time()
+                        if current_time - processing_start_time > processing_timeout:
+                            node.get_logger().warn(f'处理时间已超过{processing_timeout}秒，尝试保存当前结果并退出...')
+                            break
+                            
                         # 使用较小的timeout_sec值，加快处理速度
                         rclpy.spin_once(node, timeout_sec=0.01)
                     except KeyboardInterrupt:
@@ -1079,9 +1256,18 @@ def main(args=None):
             try:
                 # 保存最终地图
                 node.get_logger().info('保存地图...')
+                
                 try:
+                    # 保存当前结果，无论处理是否完整
                     node.save_map()
+                    
+                    # 计算总运行时间
+                    total_runtime = time.time() - start_time
+                    node.get_logger().info(f'总运行时间: {total_runtime:.1f}秒')
+                    
+                    # 打印处理统计
                     node.get_logger().info(f'保存最终地图到 {node.map_save_path}')
+                    node.get_logger().info(f'处理统计: 扫描帧={node.processed_scans}, 处理点={node.processed_points}')
                 except Exception as save_err:
                     node.get_logger().error(f'保存地图时出错: {str(save_err)}')
                     try:
@@ -1102,6 +1288,21 @@ def main(args=None):
                 if len(node.robot_trajectory) > 0:
                     node.get_logger().info(f'轨迹起点: ({node.robot_trajectory[0][0]:.2f}, {node.robot_trajectory[0][1]:.2f})')
                     node.get_logger().info(f'轨迹终点: ({node.robot_trajectory[-1][0]:.2f}, {node.robot_trajectory[-1][1]:.2f})')
+                    
+                # 打印结果摘要
+                node.get_logger().info('结果摘要:')
+                node.get_logger().info(f'  - 总运行时间: {total_runtime:.1f}秒')
+                node.get_logger().info(f'  - 处理点云: {node.processed_points}个点')
+                node.get_logger().info(f'  - 轨迹点数: {len(node.robot_trajectory)}个')
+                node.get_logger().info(f'  - 障碍物单元格: {total_obstacle_cells}个')
+                node.get_logger().info(f'  - 地图边界: [{node.min_x:.1f}, {node.max_x:.1f}]x[{node.min_y:.1f}, {node.max_y:.1f}]')
+                node.get_logger().info(f'  - 地图保存路径: {node.map_save_path}')
+                
+                # 如果有中间检查点，显示它们的位置
+                if hasattr(node, 'checkpoint_counter') and node.checkpoint_counter > 0:
+                    node.get_logger().info(f'  - 中间检查点: {node.checkpoint_counter}个')
+                    for i in range(1, node.checkpoint_counter + 1):
+                        node.get_logger().info(f'    * 检查点 {i}: map_checkpoint_{i}.png')
             except Exception as final_err:
                 node.get_logger().error(f'结束清理时出错: {str(final_err)}')
             finally:
