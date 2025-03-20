@@ -27,6 +27,10 @@ from collections import Counter
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
 plt.rcParams['axes.unicode_minus'] = False    # 用来正常显示负号
 
+# 添加固定的地图边界常量
+MAP_XLIM = (-10, 45)
+MAP_YLIM = (-14, 50)
+
 def quaternion_to_euler(q):
     """四元数转欧拉角"""
     # 提取四元数分量
@@ -309,6 +313,14 @@ class OccupancyGridMapper:
         plt.ylabel('Y (m)', fontsize=14)
         plt.colorbar(label='占用概率')
         plt.grid(True, alpha=0.3)
+        
+        # 使用全局定义的固定显示范围
+        plt.xlim(*MAP_XLIM)
+        plt.ylim(*MAP_YLIM)
+        
+        # 设置网格线刻度
+        plt.xticks(np.arange(MAP_XLIM[0], MAP_XLIM[1]+1, 10))
+        plt.yticks(np.arange(MAP_YLIM[0], MAP_YLIM[1]+1, 10))
         
         # 保存图像或显示
         if save_path:
@@ -689,7 +701,6 @@ class LmsMapperNode(Node):
                 )
                 
                 # 合并坐标为元组键
-                from collections import Counter
                 grid_coords = list(zip(grid_x, grid_y))
                 
                 # 计算每个坐标出现的次数
@@ -960,44 +971,29 @@ class LmsMapperNode(Node):
             fig = plt.figure(figsize=(12, 12))
             
             try:
-                # 设置固定显示范围，借鉴作业二的设置
-                world_min_x = -10
-                world_max_x = 45
-                world_min_y = -14
-                world_max_y = 50
+                # 显示完整地图
+                display_map = rgb_map
                 
-                # 转换世界坐标为栅格坐标
-                grid_min_x, grid_min_y = self.world_to_grid(world_min_x, world_min_y)
-                grid_max_x, grid_max_y = self.world_to_grid(world_max_x, world_max_y)
+                # 计算完整地图的世界坐标范围
+                extent = [
+                    -self.origin_x * self.resolution,
+                    (self.size_x - self.origin_x) * self.resolution,
+                    -self.origin_y * self.resolution,
+                    (self.size_y - self.origin_y) * self.resolution
+                ]
                 
-                # 确保坐标在地图范围内
-                grid_min_x = max(0, min(grid_min_x, self.size_x-1))
-                grid_max_x = max(0, min(grid_max_x, self.size_x-1))
-                grid_min_y = max(0, min(grid_min_y, self.size_y-1))
-                grid_max_y = max(0, min(grid_max_y, self.size_y-1))
-                
-                # 确保有效的裁剪范围
-                if grid_min_x >= grid_max_x or grid_min_y >= grid_max_y:
-                    self.get_logger().warn('无效的裁剪范围，使用整个地图')
-                    display_map = rgb_map
-                    extent = [
-                        -self.origin_x * self.resolution,
-                        (self.size_x - self.origin_x) * self.resolution,
-                        -self.origin_y * self.resolution,
-                        (self.size_y - self.origin_y) * self.resolution
-                    ]
-                else:
-                    # 裁剪显示范围
-                    display_map = rgb_map[grid_min_y:grid_max_y, grid_min_x:grid_max_x]
-                    extent = [world_min_x, world_max_x, world_min_y, world_max_y]
-                
+                # 绘制地图
                 plt.imshow(display_map, origin='lower', extent=extent)
+                
+                # 使用全局定义的固定显示范围
+                plt.xlim(*MAP_XLIM)
+                plt.ylim(*MAP_YLIM)
                 
                 # 设置网格线
                 grid_step_m = 10  # 10米一条网格线
                 plt.grid(True, color='gray', linestyle='-', linewidth=0.5, alpha=0.3)
-                plt.xticks(np.arange(world_min_x, world_max_x+1, grid_step_m))
-                plt.yticks(np.arange(world_min_y, world_max_y+1, grid_step_m))
+                plt.xticks(np.arange(MAP_XLIM[0], MAP_XLIM[1]+1, grid_step_m))
+                plt.yticks(np.arange(MAP_YLIM[0], MAP_YLIM[1]+1, grid_step_m))
                 
                 plt.xlabel('X (m)')
                 plt.ylabel('Y (m)')
@@ -1034,14 +1030,14 @@ class LmsMapperNode(Node):
                     plt.plot(traj_x[0], traj_y[0], 'bo', markersize=10, label='起点')
                     plt.plot(traj_x[-1], traj_y[-1], 'ro', markersize=10, label='终点')
                     
-                    # 设置固定的显示范围
-                    plt.xlim(world_min_x, world_max_x)
-                    plt.ylim(world_min_y, world_max_y)
+                    # 使用全局定义的固定显示范围
+                    plt.xlim(*MAP_XLIM)
+                    plt.ylim(*MAP_YLIM)
                     
                     # 添加网格线
                     plt.grid(True, color='gray', linestyle='-', linewidth=0.5, alpha=0.5)
-                    plt.xticks(np.arange(world_min_x, world_max_x+1, grid_step_m))
-                    plt.yticks(np.arange(world_min_y, world_max_y+1, grid_step_m))
+                    plt.xticks(np.arange(MAP_XLIM[0], MAP_XLIM[1]+1, 10))
+                    plt.yticks(np.arange(MAP_YLIM[0], MAP_YLIM[1]+1, 10))
                     
                     plt.xlabel('X (m)', fontsize=12)
                     plt.ylabel('Y (m)', fontsize=12)
@@ -1151,10 +1147,30 @@ class LmsMapperNode(Node):
                     except:
                         pass
             
-            # 保存简化版的地图（不添加网格线和额外标记，减少保存时间）
+            # 保存简化版的地图
             fig = plt.figure(figsize=(12, 12))
             try:
                 plt.imshow(rgb_map, origin='lower')
+                
+                # 计算完整地图的世界坐标范围
+                extent = [
+                    -self.origin_x * self.resolution,
+                    (self.size_x - self.origin_x) * self.resolution,
+                    -self.origin_y * self.resolution,
+                    (self.size_y - self.origin_y) * self.resolution
+                ]
+                plt.imshow(rgb_map, origin='lower', extent=extent)
+                
+                # 使用全局定义的固定显示范围
+                plt.xlim(*MAP_XLIM)
+                plt.ylim(*MAP_YLIM)
+                
+                # 设置网格线
+                grid_step_m = 10  # 10米一条网格线
+                plt.grid(True, color='gray', linestyle='-', linewidth=0.5, alpha=0.3)
+                plt.xticks(np.arange(MAP_XLIM[0], MAP_XLIM[1]+1, grid_step_m))
+                plt.yticks(np.arange(MAP_YLIM[0], MAP_YLIM[1]+1, grid_step_m))
+                
                 plt.title(f'中间地图结果 - 检查点 {self.checkpoint_counter} (时间: {(time.time() - self.start_time):.1f}秒)')
                 plt.savefig(checkpoint_path, dpi=150)  # 降低dpi以加快保存速度
                 self.get_logger().info(f'已保存中间地图到: {checkpoint_path}')

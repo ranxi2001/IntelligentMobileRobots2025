@@ -286,7 +286,7 @@ if [ -f "${BAG_PATH}" ] || [ -d "${BAG_PATH}" ]; then
     # 使用超时等待rosbag播放完成
     echo "等待rosbag播放完成..."
     # 设置更合理的超时时间，防止无限等待
-    PLAY_TIMEOUT=600
+    PLAY_TIMEOUT=3600
     PLAY_ELAPSED=0
     while ps -p $PLAY_PID > /dev/null; do
         sleep 5
