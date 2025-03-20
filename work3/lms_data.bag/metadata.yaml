@@ -2,29 +2,35 @@ rosbag2_bagfile_information:
   version: 5
   storage_identifier: sqlite3
   duration:
-    nanoseconds: 147
+    nanoseconds: 146874000000
   starting_time:
-    nanoseconds_since_epoch: 71407
-  message_count: 786
+    nanoseconds_since_epoch: 1000000000
+  message_count: 41712
   topics_with_message_count:
     - topic_metadata:
-        name: /tf
-        type: tf2_msgs/msg/TFMessage
+        name: /clock
+        type: rosgraph_msgs/msg/Clock
         serialization_format: cdr
         offered_qos_profiles: ""
-      message_count: 262
+      message_count: 10428
     - topic_metadata:
-        name: /odom
-        type: nav_msgs/msg/Odometry
-        serialization_format: cdr
-        offered_qos_profiles: ""
-      message_count: 262
-    - topic_metadata:
-        name: /scan
+        name: scan
         type: sensor_msgs/msg/LaserScan
         serialization_format: cdr
         offered_qos_profiles: ""
-      message_count: 262
+      message_count: 10428
+    - topic_metadata:
+        name: odom
+        type: nav_msgs/msg/Odometry
+        serialization_format: cdr
+        offered_qos_profiles: ""
+      message_count: 10428
+    - topic_metadata:
+        name: tf
+        type: tf2_msgs/msg/TFMessage
+        serialization_format: cdr
+        offered_qos_profiles: ""
+      message_count: 10428
   compression_format: ""
   compression_mode: ""
   relative_file_paths:
@@ -32,7 +38,7 @@ rosbag2_bagfile_information:
   files:
     - path: lms_data.bag_0.db3
       starting_time:
-        nanoseconds_since_epoch: 71407
+        nanoseconds_since_epoch: 1000000000
       duration:
-        nanoseconds: 147
-      message_count: 786
+        nanoseconds: 146874000000
+      message_count: 41712

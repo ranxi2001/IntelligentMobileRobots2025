@@ -149,18 +149,47 @@ echo "ROS2工作空间结构创建完成！"
 # 清理之前的构建
 rm -rf build/ install/ log/
 
+# 创建必要的目录
+mkdir -p install/lms_data/lib/lms_data/
+mkdir -p install/lms_mapper/lib/lms_mapper/
+
 # 重新构建
 colcon build --symlink-install
 
 # 重新设置环境
 source install/setup.bash 
 
-# 解决 "No executable found" 问题
+# 确保Python脚本存在并有执行权限
+if [ ! -f "${SRC_DIR}/lms_data/lms_data/lms_to_rosbag.py" ]; then
+    echo "错误: 找不到 lms_to_rosbag.py"
+    exit 1
+fi
+
+if [ ! -f "${SRC_DIR}/lms_mapper/lms_mapper/lms_mapper_node.py" ]; then
+    echo "错误: 找不到 lms_mapper_node.py"
+    exit 1
+fi
+
+# 设置Python脚本的执行权限
+chmod +x "${SRC_DIR}/lms_data/lms_data/lms_to_rosbag.py"
+chmod +x "${SRC_DIR}/lms_mapper/lms_mapper/lms_mapper_node.py"
+
+# 创建正确的符号链接
+cd install/lms_data/lib/lms_data/
+rm -f lms_to_rosbag
+ln -sf "../../../../src/lms_data/lms_data/lms_to_rosbag.py" lms_to_rosbag
+cd -
+
+cd install/lms_mapper/lib/lms_mapper/
+rm -f lms_mapper_node
+ln -sf "../../../../src/lms_mapper/lms_mapper/lms_mapper_node.py" lms_mapper_node
+cd -
+
+# 检查安装是否成功
+echo "检查安装的可执行文件..."
 ls -la install/lms_data/lib/lms_data/
 ls -la install/lms_mapper/lib/lms_mapper/
 
-# 在setup.sh末尾添加这些命令
-mkdir -p install/lms_data/lib/lms_data/
-mkdir -p install/lms_mapper/lib/lms_mapper/
-ln -sf ${SRC_DIR}/lms_data/lms_data/lms_to_rosbag.py install/lms_data/lib/lms_data/lms_to_rosbag
-ln -sf ${SRC_DIR}/lms_mapper/lms_mapper/lms_mapper_node.py install/lms_mapper/lib/lms_mapper/lms_mapper_node
+# 检查ROS2环境
+echo "检查ROS2环境..."
+ros2 pkg list | grep lms

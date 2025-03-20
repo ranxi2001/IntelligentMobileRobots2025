@@ -307,120 +307,504 @@ class OccupancyGridMapper:
 
 
 class LmsMapperNode(Node):
-    """ROS2激光雷达占用栅格地图生成节点"""
+    """LMS数据处理和栅格地图生成节点"""
     
     def __init__(self):
         super().__init__('lms_mapper_node')
         
         # 声明参数
-        self.declare_parameter('map_resolution', 0.1)
-        self.declare_parameter('map_size_x', 1000)
-        self.declare_parameter('map_size_y', 1000)
-        self.declare_parameter('map_update_rate', 5.0)  # 地图更新频率 (Hz)
+        self.declare_parameter('map_resolution', 0.2)
+        self.declare_parameter('map_size', 500)
+        self.declare_parameter('map_threshold', 1)
+        self.declare_parameter('filter_points', True)
+        self.declare_parameter('filter_threshold', 1.0)
         self.declare_parameter('map_save_path', 'occupancy_grid.png')
         
         # 获取参数
-        resolution = self.get_parameter('map_resolution').value
-        size_x = self.get_parameter('map_size_x').value
-        size_y = self.get_parameter('map_size_y').value
-        self.update_rate = self.get_parameter('map_update_rate').value
+        self.resolution = self.get_parameter('map_resolution').value
+        self.map_size = self.get_parameter('map_size').value
+        self.threshold = self.get_parameter('map_threshold').value
+        self.filter_points = self.get_parameter('filter_points').value
+        self.filter_threshold = self.get_parameter('filter_threshold').value
         self.map_save_path = self.get_parameter('map_save_path').value
         
-        # 初始化占用栅格地图
-        self.mapper = OccupancyGridMapper(resolution, size_x, size_y)
+        # 创建占用栅格地图
+        self.size_x = self.map_size
+        self.size_y = self.map_size
+        self.grid_map = np.zeros((self.size_x, self.size_y), dtype=int)
+        self.origin_x = self.size_x // 2
+        self.origin_y = self.size_y // 2
+        self.min_x = float('inf')
+        self.max_x = float('-inf')
+        self.min_y = float('inf')
+        self.max_y = float('-inf')
+        self.occupancy_count = {}  # 用于跟踪每个栅格的激光点数
         
-        # 初始化订阅者
-        self.scan_sub = self.create_subscription(
+        # 存储机器人轨迹
+        self.robot_trajectory = []
+        
+        # 记录最近收到的位姿
+        self.latest_pose = None
+        self.first_scan_received = False
+        self.last_scan_time = None
+        
+        # 创建订阅
+        self.scan_subscription = self.create_subscription(
             LaserScan,
             '/scan',
             self.scan_callback,
-            10)
-            
-        self.odom_sub = self.create_subscription(
+            10
+        )
+        self.odom_subscription = self.create_subscription(
             Odometry,
             '/odom',
             self.odom_callback,
-            10)
-            
-        # 初始化发布者
-        self.map_pub = self.create_publisher(
+            10
+        )
+        
+        # 创建地图发布者
+        self.map_publisher = self.create_publisher(
             OccupancyGrid,
             '/map',
-            10)
-            
-        # 初始化定时器，定期发布地图
-        self.timer = self.create_timer(1.0 / self.update_rate, self.publish_map)
+            10
+        )
         
-        # 存储数据
-        self.latest_scan = None
-        self.latest_pose = None
-        self.robot_trajectory = []
-        
-        # 同步锁，防止数据竞争
-        self.lock = threading.Lock()
-        
-        # 记录开始时间
-        self.start_time = self.get_clock().now()
+        # 创建地图更新定时器
+        self.map_timer = self.create_timer(1.0, self.publish_map)  # 每秒发布一次地图
         
         self.get_logger().info('LMS mapper node已启动')
-        
+    
     def odom_callback(self, msg):
-        """处理里程计消息"""
-        with self.lock:
-            self.latest_pose = msg.pose.pose
-            
-            # 记录轨迹点
-            position = msg.pose.pose.position
-            self.robot_trajectory.append((position.x, position.y))
+        """处理里程计消息，获取机器人位姿"""
+        pose = msg.pose.pose
+        position = pose.position
+        orientation = pose.orientation
+        
+        # 打印详细调试信息
+        self.get_logger().info(f'接收到里程计消息: frame_id={msg.header.frame_id}, child_frame_id={msg.child_frame_id}')
+        self.get_logger().info(f'位置: x={position.x:.2f}, y={position.y:.2f}, z={position.z:.2f}')
+        
+        # 将四元数转换为欧拉角
+        euler = self.quaternion_to_euler(
+            orientation.x, 
+            orientation.y, 
+            orientation.z, 
+            orientation.w
+        )
+        
+        # 保存最新的位姿
+        self.latest_pose = {
+            'timestamp': self.get_clock().now().nanoseconds // 1000000,  # 转换为毫秒
+            'x': position.x,
+            'y': position.y,
+            'theta': euler[2]  # yaw角
+        }
+        
+        # 记录轨迹点
+        self.robot_trajectory.append((position.x, position.y))
+        
+        # 添加调试信息
+        self.get_logger().info(f'添加轨迹点 #{len(self.robot_trajectory)}: ({position.x:.2f}, {position.y:.2f})')
+        if len(self.robot_trajectory) % 10 == 0:  # 每10个点打印一次，避免日志过多
+            self.get_logger().info(f'轨迹统计: 总点数={len(self.robot_trajectory)}, 开始=({self.robot_trajectory[0][0]:.2f}, {self.robot_trajectory[0][1]:.2f}), 最新=({position.x:.2f}, {position.y:.2f})')
     
     def scan_callback(self, msg):
-        """处理激光扫描消息"""
-        with self.lock:
-            self.latest_scan = msg
+        """处理激光扫描消息，更新占用栅格地图"""
+        if self.latest_pose is None:
+            self.get_logger().warn('接收到激光数据，但没有位姿信息，跳过处理')
+            return
+        
+        # 获取当前扫描的时间戳和frame_id
+        current_scan_time = self.get_clock().now().nanoseconds // 1000000
+        self.get_logger().info(f'接收到激光数据: frame_id={msg.header.frame_id}, 点数={len(msg.ranges)}')
+        
+        # 如果是第一帧，记录时间
+        if not self.first_scan_received:
+            self.first_scan_received = True
+            self.last_scan_time = current_scan_time
+            self.get_logger().info('接收到第一帧激光数据')
+        
+        # 计算与上一帧的时间差
+        time_diff = current_scan_time - self.last_scan_time
+        self.last_scan_time = current_scan_time
+        
+        # 如果时间差过小，可能是重复帧，跳过处理
+        if time_diff < 10:  # 小于10毫秒认为是重复帧
+            return
+        
+        # 获取激光扫描数据
+        ranges = np.array(msg.ranges)
+        angle_min = msg.angle_min
+        angle_increment = msg.angle_increment
+        angles = np.arange(len(ranges)) * angle_increment + angle_min
+        
+        # 添加调试信息
+        if len(ranges) > 0:
+            self.get_logger().info(f'接收到激光数据: {len(ranges)}个点, 角度范围=[{angle_min:.2f}, {angle_min + angle_increment * (len(ranges)-1):.2f}]')
+        
+        # 筛选有效的激光点
+        valid_indices = ~np.isnan(ranges) & ~np.isinf(ranges) & (ranges > 0.1) & (ranges < 30.0)
+        
+        # 额外的点过滤 - 类似作业2的连续性检查
+        if self.filter_points:
+            for i in range(1, len(ranges)-1):
+                if valid_indices[i]:
+                    # 计算与相邻点的差异
+                    diff_prev = abs(ranges[i] - ranges[i-1]) if valid_indices[i-1] else float('inf')
+                    diff_next = abs(ranges[i] - ranges[i+1]) if valid_indices[i+1] else float('inf')
+                    
+                    # 如果与相邻点的差异过大，标记为无效
+                    if diff_prev > self.filter_threshold and diff_next > self.filter_threshold:
+                        valid_indices[i] = False
+        
+        valid_ranges = ranges[valid_indices]
+        valid_angles = angles[valid_indices]
+        
+        if len(valid_ranges) == 0:
+            self.get_logger().warn('没有有效的激光点')
+            return
+        
+        self.get_logger().info(f'有效激光点: {len(valid_ranges)}/{len(ranges)}')
+        
+        # 转换激光点到机器人坐标系
+        laser_x = valid_ranges * np.cos(valid_angles)
+        laser_y = valid_ranges * np.sin(valid_angles)
+        
+        # 获取机器人位姿
+        robot_x = self.latest_pose['x']
+        robot_y = self.latest_pose['y']
+        robot_theta = self.latest_pose['theta']
+        
+        # 转换到世界坐标系
+        cos_theta = np.cos(robot_theta)
+        sin_theta = np.sin(robot_theta)
+        world_x = robot_x + laser_x * cos_theta - laser_y * sin_theta
+        world_y = robot_y + laser_x * sin_theta + laser_y * cos_theta
+        
+        # 更新占用栅格地图
+        world_points = np.column_stack((world_x, world_y))
+        self.update_map(world_points)
+        
+        # 添加调试信息
+        self.get_logger().info(f'更新地图: 添加了{len(world_points)}个点')
+    
+    def update_map(self, points):
+        """更新占用栅格地图"""
+        points_added = 0
+        
+        for x, y in points:
+            # 更新地图边界
+            self.min_x = min(self.min_x, x)
+            self.max_x = max(self.max_x, x)
+            self.min_y = min(self.min_y, y)
+            self.max_y = max(self.max_y, y)
+            
+            # 转换为栅格坐标
+            grid_x, grid_y = self.world_to_grid(x, y)
+            
+            # 检查是否在地图范围内
+            if 0 <= grid_x < self.size_x and 0 <= grid_y < self.size_y:
+                # 累积计数
+                key = (grid_x, grid_y)
+                self.occupancy_count[key] = self.occupancy_count.get(key, 0) + 1
+                
+                # 更新栅格地图
+                if self.occupancy_count[key] > self.threshold:
+                    if self.grid_map[grid_x, grid_y] == 0:  # 只有当格子状态改变时才计数
+                        points_added += 1
+                    self.grid_map[grid_x, grid_y] = 1
+        
+        if points_added > 0:
+            self.get_logger().info(f'添加了{points_added}个新障碍物点到地图')
+        
+        # 定期打印地图统计信息
+        total_obstacle_cells = np.sum(self.grid_map == 1)
+        if total_obstacle_cells % 100 == 0 and total_obstacle_cells > 0:
+            self.get_logger().info(f'地图统计: 障碍物单元格={total_obstacle_cells}, 地图边界=[{self.min_x:.1f}, {self.max_x:.1f}]x[{self.min_y:.1f}, {self.max_y:.1f}]')
+    
+    def world_to_grid(self, x, y):
+        """世界坐标系转栅格坐标系"""
+        grid_x = int(self.origin_x + x / self.resolution)
+        grid_y = int(self.origin_y + y / self.resolution)
+        return grid_x, grid_y
+    
+    def grid_to_world(self, grid_x, grid_y):
+        """栅格坐标系转世界坐标系"""
+        x = (grid_x - self.origin_x) * self.resolution
+        y = (grid_y - self.origin_y) * self.resolution
+        return x, y
+    
+    def quaternion_to_euler(self, x, y, z, w):
+        """四元数转欧拉角"""
+        # 计算欧拉角
+        t0 = 2.0 * (w * x + y * z)
+        t1 = 1.0 - 2.0 * (x * x + y * y)
+        roll = np.arctan2(t0, t1)
+        
+        t2 = 2.0 * (w * y - z * x)
+        t2 = np.clip(t2, -1.0, 1.0)
+        pitch = np.arcsin(t2)
+        
+        t3 = 2.0 * (w * z + x * y)
+        t4 = 1.0 - 2.0 * (y * y + z * z)
+        yaw = np.arctan2(t3, t4)
+        
+        return (roll, pitch, yaw)
     
     def publish_map(self):
-        """定期发布地图并更新"""
-        with self.lock:
-            # 检查是否有数据可用
-            if self.latest_scan is None or self.latest_pose is None:
-                return
+        """发布占用栅格地图"""
+        if self.min_x == float('inf'):
+            # 还没有接收到任何数据
+            return
+        
+        # 创建并发布地图消息
+        map_msg = OccupancyGrid()
+        map_msg.header.stamp = self.get_clock().now().to_msg()
+        map_msg.header.frame_id = 'map'
+        
+        map_msg.info.resolution = self.resolution
+        map_msg.info.width = self.size_x
+        map_msg.info.height = self.size_y
+        map_msg.info.origin.position.x = -self.origin_x * self.resolution
+        map_msg.info.origin.position.y = -self.origin_y * self.resolution
+        map_msg.info.origin.position.z = 0.0
+        map_msg.info.origin.orientation.w = 1.0
+        
+        # 将二进制地图转换为占用率
+        occupancy_values = np.zeros(self.size_x * self.size_y, dtype=np.int8)
+        for i in range(self.size_x):
+            for j in range(self.size_y):
+                if self.grid_map[i, j] == 1:
+                    # 占用 (100%)
+                    occupancy_values[j * self.size_x + i] = 100
+                else:
+                    # 未知 (-1) 或空闲 (0)
+                    occupancy_values[j * self.size_x + i] = 0
+        
+        map_msg.data = list(occupancy_values)
+        self.map_publisher.publish(map_msg)
+    
+    def save_map(self):
+        """保存占用栅格地图为图像文件"""
+        # 创建彩色地图图像
+        rgb_map = np.zeros((self.size_y, self.size_x, 3), dtype=np.uint8)
+        
+        # 白色背景
+        rgb_map.fill(255)
+        
+        # 红色表示障碍物
+        obstacle_indices = np.where(self.grid_map == 1)
+        if len(obstacle_indices[0]) > 0:
+            rgb_map[obstacle_indices[1], obstacle_indices[0]] = [255, 0, 0]  # RGB: 红色
+        
+        # 添加网格线
+        grid_step = max(1, int(10 / self.resolution))  # 每10米一条线
+        for i in range(0, self.size_x, grid_step):
+            rgb_map[:, i] = [0, 0, 255]  # 蓝色垂直线
+        for i in range(0, self.size_y, grid_step):
+            rgb_map[i, :] = [0, 0, 255]  # 蓝色水平线
+        
+        # 绘制机器人轨迹（绿色）
+        if self.robot_trajectory:
+            self.get_logger().info(f'绘制轨迹: {len(self.robot_trajectory)}个点')
+            
+            # 计算轨迹的边界
+            traj_x = [p[0] for p in self.robot_trajectory]
+            traj_y = [p[1] for p in self.robot_trajectory]
+            traj_min_x = min(traj_x)
+            traj_max_x = max(traj_x)
+            traj_min_y = min(traj_y)
+            traj_max_y = max(traj_y)
+            
+            # 绘制所有轨迹点连线
+            prev_x, prev_y = None, None
+            for x, y in self.robot_trajectory:
+                grid_x, grid_y = self.world_to_grid(x, y)
                 
-            # 提取激光数据
-            scan = self.latest_scan
-            ranges = np.array(scan.ranges)
-            angle_min = scan.angle_min
-            angle_increment = scan.angle_increment
-            angles = np.arange(len(ranges)) * angle_increment + angle_min
+                # 绘制轨迹点
+                if 0 <= grid_x < self.size_x and 0 <= grid_y < self.size_y:
+                    # 绘制3x3的点，确保可见性
+                    for dx in [-1, 0, 1]:
+                        for dy in [-1, 0, 1]:
+                            gx, gy = grid_x + dx, grid_y + dy
+                            if 0 <= gx < self.size_x and 0 <= gy < self.size_y:
+                                rgb_map[gy, gx] = [0, 255, 0]  # 绿色点
+                
+                # 绘制连接线
+                if prev_x is not None and prev_y is not None:
+                    # 使用Bresenham算法绘制线段
+                    line_points = self.bresenham_line(prev_x, prev_y, grid_x, grid_y)
+                    for lx, ly in line_points:
+                        if 0 <= lx < self.size_x and 0 <= ly < self.size_y:
+                            rgb_map[ly, lx] = [0, 200, 0]  # 稍暗的绿色线
+                
+                prev_x, prev_y = grid_x, grid_y
             
-            # 转换激光点到世界坐标系
-            world_points = laser_to_world(self.latest_pose, ranges, angles)
+            # 特别标记起点和终点
+            if len(self.robot_trajectory) >= 2:
+                # 起点(蓝色)
+                start_x, start_y = self.world_to_grid(self.robot_trajectory[0][0], self.robot_trajectory[0][1])
+                for dx in range(-4, 5):
+                    for dy in range(-4, 5):
+                        gx, gy = start_x + dx, start_y + dy
+                        if 0 <= gx < self.size_x and 0 <= gy < self.size_y:
+                            # 绘制圆形起点标记
+                            if dx*dx + dy*dy <= 16:
+                                rgb_map[gy, gx] = [0, 0, 255]  # 起点蓝色
+                
+                # 终点(红色)
+                end_x, end_y = self.world_to_grid(self.robot_trajectory[-1][0], self.robot_trajectory[-1][1])
+                for dx in range(-4, 5):
+                    for dy in range(-4, 5):
+                        gx, gy = end_x + dx, end_y + dy
+                        if 0 <= gx < self.size_x and 0 <= gy < self.size_y:
+                            # 绘制X形终点标记
+                            if abs(dx) == abs(dy):
+                                rgb_map[gy, gx] = [255, 0, 0]  # 终点红色
+        else:
+            self.get_logger().warn('没有轨迹点可绘制')
+        
+        # 保存图像
+        plt.figure(figsize=(12, 12))
+        
+        # 设置固定显示范围，借鉴作业二的设置
+        world_min_x = -10
+        world_max_x = 45
+        world_min_y = -14
+        world_max_y = 50
+        
+        # 转换世界坐标为栅格坐标
+        grid_min_x, grid_min_y = self.world_to_grid(world_min_x, world_min_y)
+        grid_max_x, grid_max_y = self.world_to_grid(world_max_x, world_max_y)
+        
+        # 确保坐标在地图范围内
+        grid_min_x = max(0, min(grid_min_x, self.size_x-1))
+        grid_max_x = max(0, min(grid_max_x, self.size_x-1))
+        grid_min_y = max(0, min(grid_min_y, self.size_y-1))
+        grid_max_y = max(0, min(grid_max_y, self.size_y-1))
+        
+        # 裁剪显示范围
+        display_map = rgb_map[grid_min_y:grid_max_y, grid_min_x:grid_max_x]
+        
+        plt.imshow(display_map, origin='lower', 
+                  extent=[world_min_x, world_max_x, world_min_y, world_max_y])
+        
+        # 设置网格线
+        grid_step_m = 10  # 10米一条网格线
+        plt.grid(True, color='gray', linestyle='-', linewidth=0.5, alpha=0.3)
+        plt.xticks(np.arange(world_min_x, world_max_x+1, grid_step_m))
+        plt.yticks(np.arange(world_min_y, world_max_y+1, grid_step_m))
+        
+        plt.xlabel('X (m)')
+        plt.ylabel('Y (m)')
+        plt.title('占用栅格图 (白色=空闲, 红色=障碍物)', fontsize=14)
+        
+        # 保存并关闭图像
+        plt.savefig(self.map_save_path, dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        self.get_logger().info(f'地图已保存到: {self.map_save_path}')
+        
+        # 如果轨迹点数量适中，额外保存一个只包含轨迹的图
+        if len(self.robot_trajectory) > 0:
+            plt.figure(figsize=(12, 12))
+            traj_x = [p[0] for p in self.robot_trajectory]
+            traj_y = [p[1] for p in self.robot_trajectory]
+            plt.plot(traj_x, traj_y, 'g-', linewidth=2, markersize=2)
             
-            # 更新地图
-            self.mapper.update_map(self.latest_pose, world_points)
+            # 标记起点和终点
+            plt.plot(traj_x[0], traj_y[0], 'bo', markersize=10, label='起点')
+            plt.plot(traj_x[-1], traj_y[-1], 'ro', markersize=10, label='终点')
             
-            # 发布地图
-            map_msg = self.mapper.get_ros_occupancy_grid()
-            self.map_pub.publish(map_msg)
+            # 设置固定的显示范围
+            plt.xlim(world_min_x, world_max_x)
+            plt.ylim(world_min_y, world_max_y)
             
-            # 检查是否需要保存地图
-            elapsed = (self.get_clock().now() - self.start_time).nanoseconds / 1e9
-            if int(elapsed) % 10 == 0:  # 每10秒保存一次地图
-                self.mapper.visualize_map(self.robot_trajectory, self.map_save_path)
+            # 添加网格线
+            plt.grid(True, color='gray', linestyle='-', linewidth=0.5, alpha=0.5)
+            plt.xticks(np.arange(world_min_x, world_max_x+1, grid_step_m))
+            plt.yticks(np.arange(world_min_y, world_max_y+1, grid_step_m))
+            
+            plt.xlabel('X (m)', fontsize=12)
+            plt.ylabel('Y (m)', fontsize=12)
+            plt.title('机器人轨迹', fontsize=14)
+            plt.legend(loc='upper right')
+            
+            plt.savefig('robot_trajectory.png', dpi=300, bbox_inches='tight')
+            plt.close()
+            self.get_logger().info('轨迹图已保存到: robot_trajectory.png')
+
+    def bresenham_line(self, x0, y0, x1, y1):
+        """使用Bresenham算法生成两点间的线段像素坐标"""
+        points = []
+        dx = abs(x1 - x0)
+        dy = abs(y1 - y0)
+        sx = 1 if x0 < x1 else -1
+        sy = 1 if y0 < y1 else -1
+        err = dx - dy
+        
+        while True:
+            points.append((x0, y0))
+            if x0 == x1 and y0 == y1:
+                break
+            e2 = 2 * err
+            if e2 > -dy:
+                err -= dy
+                x0 += sx
+            if e2 < dx:
+                err += dx
+                y0 += sy
+                
+        return points
 
 
 def main(args=None):
     rclpy.init(args=args)
     
     node = LmsMapperNode()
+    node.get_logger().info('LMS mapper node已启动，等待数据...')
     
     try:
-        rclpy.spin(node)
+        # 主动处理一段时间的消息
+        timeout = 0
+        max_timeout = 60  # 最大等待时间（秒）
+        
+        while rclpy.ok() and timeout < max_timeout:
+            rclpy.spin_once(node, timeout_sec=1.0)
+            
+            # 检查是否已接收到数据
+            if len(node.robot_trajectory) > 0:
+                node.get_logger().info(f'已接收轨迹点: {len(node.robot_trajectory)}')
+                if timeout == 0:
+                    node.get_logger().info('开始接收数据，继续处理...')
+            else:
+                timeout += 1
+                if timeout % 5 == 0:  # 每5秒提示一次
+                    node.get_logger().warn(f'等待数据中... {timeout}/{max_timeout}秒')
+        
+        # 主循环处理
+        if timeout < max_timeout:
+            node.get_logger().info('进入主处理循环')
+            rclpy.spin(node)
+        else:
+            node.get_logger().error('超时未接收到数据，退出')
+    
     except KeyboardInterrupt:
-        pass
+        node.get_logger().info('用户中断，退出')
+    except Exception as e:
+        node.get_logger().error(f'发生错误: {str(e)}')
     finally:
         # 保存最终地图
-        node.mapper.visualize_map(node.robot_trajectory, node.map_save_path)
+        node.get_logger().info('保存地图...')
+        node.save_map()
         node.get_logger().info(f'保存最终地图到 {node.map_save_path}')
+        
+        # 打印最终统计信息
+        total_obstacle_cells = np.sum(node.grid_map == 1)
+        node.get_logger().info(f'最终地图统计: 轨迹点={len(node.robot_trajectory)}, 障碍物单元格={total_obstacle_cells}')
+        if len(node.robot_trajectory) > 0:
+            node.get_logger().info(f'轨迹起点: ({node.robot_trajectory[0][0]:.2f}, {node.robot_trajectory[0][1]:.2f})')
+            node.get_logger().info(f'轨迹终点: ({node.robot_trajectory[-1][0]:.2f}, {node.robot_trajectory[-1][1]:.2f})')
         
         # 清理资源
         node.destroy_node()
