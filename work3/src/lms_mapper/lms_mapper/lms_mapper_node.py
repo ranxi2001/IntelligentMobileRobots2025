@@ -40,17 +40,25 @@ def calculate_map_bounds(min_x, max_x, min_y, max_y, padding=5.0):
     y_range = max_y - min_y
     
     # 确保边距至少占范围的10%，并且对y轴上限特别关注
-    x_padding = max(padding, x_range * 0.1)
-    y_padding = max(padding, y_range * 0.15)  # 增加y轴的边距比例
+    x_padding = max(padding, x_range * 0.2)  # 增加边距百分比
+    y_padding = max(padding, y_range * 0.25)  # 增加y轴的边距比例
     
     xlim = (min_x - x_padding, max_x + x_padding)
-    ylim = (min_y - y_padding, max_y + y_padding * 1.2)  # 对y轴上限额外增加20%的空间
+    ylim = (min_y - y_padding, max_y + y_padding * 1.5)  # 对y轴上限额外增加空间
     
-    # 确保y轴至少能显示到70
-    if ylim[1] < 70:
-        ylim = (ylim[0], 70)
+    # 确保显示范围足够大
+    if ylim[1] < 100:
+        ylim = (ylim[0], max(100, ylim[1]))
+    if xlim[1] < 80:
+        xlim = (xlim[0], max(80, xlim[1]))
     
-    return (xlim[0], xlim[1], ylim[0], ylim[1])
+    # 确保下限也足够低，能显示负坐标
+    if xlim[0] > -20:
+        xlim = (min(-20, xlim[0]), xlim[1])
+    if ylim[0] > -20:
+        ylim = (min(-20, ylim[0]), ylim[1])
+        
+    return xlim + ylim
 
 def quaternion_to_euler(q):
     """四元数转欧拉角"""
@@ -135,11 +143,19 @@ class OccupancyGridMapper:
         self.miss_map = np.zeros((size_x, size_y), dtype=np.int16)
     
     def world_to_grid(self, x, y):
-        """世界坐标系转栅格坐标系"""
+        """世界坐标系转栅格坐标系
+        
+        参数:
+            x: 世界坐标系下的X坐标
+            y: 世界坐标系下的Y坐标
+            
+        返回:
+            (grid_x, grid_y): 栅格坐标系下的整数坐标
+        """
         try:
-            # 检查输入坐标是否在合理范围内
-            if not -100 < x < 100 or not -100 < y < 100:
-                self.get_logger().warn(f'世界坐标超出合理范围: x={x}, y={y}')
+            # 检查输入坐标是否在合理范围内 - 扩大允许范围
+            if not -200 < x < 200 or not -200 < y < 200:
+                self.get_logger().warn(f'世界坐标超出扩展范围: x={x}, y={y}')
             
             # 将世界坐标转换为栅格坐标
             # origin_x和origin_y表示地图原点(0,0)在栅格中的位置（通常是地图中心）
@@ -156,9 +172,15 @@ class OccupancyGridMapper:
                 self.get_logger().info(f'【坐标转换】世界坐标(x={x:.2f},y={y:.2f}) --> 栅格坐标(grid_x={grid_x},grid_y={grid_y})')
                 self.get_logger().info(f'【参数确认】原点(origin_x={self.origin_x},origin_y={self.origin_y}), 分辨率={self.resolution}米/格')
             
-            # 确保坐标在栅格范围内
-            grid_x = max(0, min(grid_x, self.size_x - 1))
-            grid_y = max(0, min(grid_y, self.size_y - 1))
+            # 扩大栅格范围处理 - 动态处理超出范围的坐标
+            # 如果坐标超出范围，记录日志但仍返回实际计算值，由调用者决定如何处理
+            if grid_x < 0 or grid_x >= self.size_x or grid_y < 0 or grid_y >= self.size_y:
+                if self._world_to_grid_count % 100 == 0:  # 减少日志频率
+                    self.get_logger().warn(f'栅格坐标超出地图范围: (grid_x={grid_x},grid_y={grid_y}), 来自世界坐标(x={x:.2f},y={y:.2f})')
+                
+                # 仍然需要限制在合理范围内以避免数组访问错误
+                grid_x = max(0, min(grid_x, self.size_x - 1))
+                grid_y = max(0, min(grid_y, self.size_y - 1))
             
             return grid_x, grid_y
         except Exception as e:
@@ -449,8 +471,8 @@ class LmsMapperNode(Node):
         super().__init__('lms_mapper_node')
         
         # 声明参数
-        self.declare_parameter('map_resolution', 0.2)
-        self.declare_parameter('map_size', 500)
+        self.declare_parameter('map_resolution', 0.1)  # 提高默认分辨率从0.2到0.1
+        self.declare_parameter('map_size', 1000)  # 增加默认地图尺寸从500到1000
         self.declare_parameter('map_threshold', 1)
         self.declare_parameter('filter_points', True)
         self.declare_parameter('filter_threshold', 1.0)
@@ -469,6 +491,9 @@ class LmsMapperNode(Node):
         self.map_reset_enabled = self.get_parameter('map_reset_enabled').value  # 读取参数
         self.clear_expired_obstacles_enabled = self.get_parameter('clear_expired_obstacles_enabled').value  # 读取参数
         self.save_interval = self.get_parameter('save_interval').value  # 读取中间地图保存间隔
+        
+        # 输出地图参数信息
+        self.get_logger().info(f'地图参数: 尺寸={self.map_size}x{self.map_size}, 分辨率={self.resolution}米/格')
         
         # 输出地图重置功能状态
         if self.map_reset_enabled:
@@ -919,7 +944,7 @@ class LmsMapperNode(Node):
                     # 3. 障碍物的绝对坐标
                     self.get_logger().info(f'3.障碍物的绝对坐标: {", ".join([f"({p[0]:.2f}m,{p[1]:.2f}m)" for p in closest_points])}')
                 
-                # 更新地图边界
+                # 更新地图边界 - 确保包含所有点，即使它们在当前地图范围之外
                 min_x = np.min(points[:, 0])
                 max_x = np.max(points[:, 0])
                 min_y = np.min(points[:, 1])
@@ -930,21 +955,28 @@ class LmsMapperNode(Node):
                 self.min_y = min(self.min_y, min_y)
                 self.max_y = max(self.max_y, max_y)
                 
-                # 记录地图边界的更新
-                self.get_logger().info(f'【地图边界】x=[{self.min_x:.2f}, {self.max_x:.2f}], y=[{self.min_y:.2f}, {self.max_y:.2f}]')
+                # 每100次更新记录一次地图边界的更新
+                if not hasattr(self, '_boundary_update_count'):
+                    self._boundary_update_count = 0
+                self._boundary_update_count += 1
+                if self._boundary_update_count % 100 == 0:
+                    self.get_logger().info(f'【地图边界】x=[{self.min_x:.2f}, {self.max_x:.2f}], y=[{self.min_y:.2f}, {self.max_y:.2f}]')
                 
-                # 批量转换为栅格坐标
-                grid_x = np.clip(
-                    (self.origin_x + points[:, 0] / self.resolution).astype(np.int32),
-                    0, self.size_x - 1
-                )
-                grid_y = np.clip(
-                    (self.origin_y + points[:, 1] / self.resolution).astype(np.int32),
-                    0, self.size_y - 1
-                )
+                # 检查是否有点超出安全处理范围
+                out_of_range_points = np.any((points[:, 0] < -180) | (points[:, 0] > 180) | 
+                                          (points[:, 1] < -180) | (points[:, 1] > 180))
+                if out_of_range_points:
+                    self.get_logger().warn('存在超出±180米范围的点，这些点可能不会正确显示在地图上')
                 
-                # 合并坐标为元组键
-                grid_coords = list(zip(grid_x, grid_y))
+                # 批量转换为栅格坐标 - 在转换前不裁剪，允许更大范围的世界坐标
+                grid_coords = []
+                for i in range(len(points)):
+                    try:
+                        # 使用优化后的world_to_grid函数
+                        gx, gy = self.world_to_grid(points[i, 0], points[i, 1])
+                        grid_coords.append((gx, gy))
+                    except Exception as e:
+                        pass  # 忽略无法转换的点
                 
                 # 计算每个坐标出现的次数
                 coord_counts = Counter(grid_coords)
@@ -953,15 +985,17 @@ class LmsMapperNode(Node):
                 for (gx, gy), count in coord_counts.items():
                     key = (gx, gy)
                     # 累积计数
-                    self.occupancy_count[key] = self.occupancy_count.get(key, 0) + count
+                    if key in self.occupancy_count:
+                        self.occupancy_count[key] += count
+                    else:
+                        self.occupancy_count[key] = count
                     
-                    # 更新栅格
-                    if self.occupancy_count[key] > self.threshold:
-                        if self.grid_map[gx, gy] == 0:  # 只有当格子状态改变时才计数
+                    # 如果累积次数达到阈值，标记为障碍物
+                    if self.occupancy_count[key] >= self.threshold:
+                        if 0 <= gx < self.size_x and 0 <= gy < self.size_y:  # 确保在有效范围内
+                            self.grid_map[gx, gy] = 1
+                            self.obstacle_timestamps[key] = current_time
                             points_added += 1
-                        self.grid_map[gx, gy] = 1
-                        # 更新障碍物时间戳
-                        self.obstacle_timestamps[key] = current_time
             else:
                 # 传统的点一个个处理
                 for x, y in points:
@@ -1048,9 +1082,9 @@ class LmsMapperNode(Node):
             (grid_x, grid_y): 栅格坐标系下的整数坐标
         """
         try:
-            # 检查输入坐标是否在合理范围内
-            if not -100 < x < 100 or not -100 < y < 100:
-                self.get_logger().warn(f'世界坐标超出合理范围: x={x}, y={y}')
+            # 检查输入坐标是否在合理范围内 - 扩大允许范围
+            if not -200 < x < 200 or not -200 < y < 200:
+                self.get_logger().warn(f'世界坐标超出扩展范围: x={x}, y={y}')
             
             # 将世界坐标转换为栅格坐标
             # origin_x和origin_y表示地图原点(0,0)在栅格中的位置（通常是地图中心）
@@ -1067,9 +1101,15 @@ class LmsMapperNode(Node):
                 self.get_logger().info(f'【坐标转换】世界坐标(x={x:.2f},y={y:.2f}) --> 栅格坐标(grid_x={grid_x},grid_y={grid_y})')
                 self.get_logger().info(f'【参数确认】原点(origin_x={self.origin_x},origin_y={self.origin_y}), 分辨率={self.resolution}米/格')
             
-            # 确保坐标在栅格范围内
-            grid_x = max(0, min(grid_x, self.size_x - 1))
-            grid_y = max(0, min(grid_y, self.size_y - 1))
+            # 扩大栅格范围处理 - 动态处理超出范围的坐标
+            # 如果坐标超出范围，记录日志但仍返回实际计算值，由调用者决定如何处理
+            if grid_x < 0 or grid_x >= self.size_x or grid_y < 0 or grid_y >= self.size_y:
+                if self._world_to_grid_count % 100 == 0:  # 减少日志频率
+                    self.get_logger().warn(f'栅格坐标超出地图范围: (grid_x={grid_x},grid_y={grid_y}), 来自世界坐标(x={x:.2f},y={y:.2f})')
+                
+                # 仍然需要限制在合理范围内以避免数组访问错误
+                grid_x = max(0, min(grid_x, self.size_x - 1))
+                grid_y = max(0, min(grid_y, self.size_y - 1))
             
             return grid_x, grid_y
         except Exception as e:
@@ -1477,6 +1517,22 @@ class LmsMapperNode(Node):
             obstacle_indices = np.where(self.grid_map == 1)
             if len(obstacle_indices[0]) > 0:
                 rgb_map[obstacle_indices[1], obstacle_indices[0]] = [255, 0, 0]  # RGB: 红色
+                self.get_logger().info(f'共绘制障碍物点 {len(obstacle_indices[0])}个')
+                
+                # 记录障碍物点的世界坐标范围，帮助调试
+                obstacle_world_coords = []
+                for i in range(len(obstacle_indices[0])):
+                    grid_x, grid_y = obstacle_indices[0][i], obstacle_indices[1][i]
+                    world_x = (grid_x - self.origin_x) * self.resolution
+                    world_y = (grid_y - self.origin_y) * self.resolution
+                    obstacle_world_coords.append((world_x, world_y))
+                
+                if obstacle_world_coords:
+                    min_obs_x = min(p[0] for p in obstacle_world_coords)
+                    max_obs_x = max(p[0] for p in obstacle_world_coords)
+                    min_obs_y = min(p[1] for p in obstacle_world_coords)
+                    max_obs_y = max(p[1] for p in obstacle_world_coords)
+                    self.get_logger().info(f'障碍物世界坐标范围: X={min_obs_x:.2f}到{max_obs_x:.2f}, Y={min_obs_y:.2f}到{max_obs_y:.2f}')
             
             # 获取当前轨迹的安全副本
             current_trajectory = []
@@ -1544,7 +1600,7 @@ class LmsMapperNode(Node):
                 self.get_logger().warn('没有轨迹点可绘制')
             
             # 保存简化版的地图
-            fig = plt.figure(figsize=(12, 12))
+            fig = plt.figure(figsize=(15, 15))  # 增加图像尺寸
             try:
                 # 计算完整地图的世界坐标范围
                 extent = [
@@ -1556,7 +1612,7 @@ class LmsMapperNode(Node):
                 
                 # 减少输出的调试信息，只保留关键信息
                 # 动态计算显示范围，根据当前数据 - 确保使用全部数据范围
-                map_bounds = calculate_map_bounds(self.min_x, self.max_x, self.min_y, self.max_y, padding=10.0)
+                map_bounds = calculate_map_bounds(self.min_x, self.max_x, self.min_y, self.max_y, padding=15.0)  # 增加边距
                 
                 # 如果轨迹数据有效，也考虑轨迹的边界，并确保范围充分大以显示所有障碍物
                 if current_trajectory:
@@ -1567,11 +1623,14 @@ class LmsMapperNode(Node):
                     
                     # 取二者边界的并集，并确保提供足够大的显示范围
                     map_bounds = calculate_map_bounds(
-                        min(self.min_x, traj_min_x) - 15.0,  # 左侧额外留出空间
-                        max(self.max_x, traj_max_x) + 15.0,  # 右侧额外留出空间
-                        min(self.min_y, traj_min_y) - 15.0,  # 下方额外留出空间
-                        max(self.max_y, traj_max_y) + 15.0   # 上方额外留出空间
+                        min(self.min_x, traj_min_x) - 20.0,  # 左侧额外留出空间
+                        max(self.max_x, traj_max_x) + 20.0,  # 右侧额外留出空间
+                        min(self.min_y, traj_min_y) - 20.0,  # 下方额外留出空间
+                        max(self.max_y, traj_max_y) + 30.0   # 上方额外留出空间
                     )
+                
+                # 输出当前地图边界以便调试
+                self.get_logger().info(f'地图显示边界: X={map_bounds[0]:.1f}到{map_bounds[1]:.1f}, Y={map_bounds[2]:.1f}到{map_bounds[3]:.1f}')
                 
                 # 只保留一次imshow调用
                 plt.imshow(rgb_map, origin='lower', extent=extent)
@@ -1583,7 +1642,7 @@ class LmsMapperNode(Node):
                 # 计算合适的网格线间隔
                 x_range = map_bounds[1] - map_bounds[0]
                 y_range = map_bounds[3] - map_bounds[2]
-                grid_step_m = min(10, max(x_range, y_range) / 5)
+                grid_step_m = min(10, max(x_range, y_range) / 8)  # 增加网格线数量
                 grid_step_m = max(2, round(grid_step_m))  # 至少2米，并取整
                 
                 # 设置网格线
@@ -1604,6 +1663,11 @@ class LmsMapperNode(Node):
                     plt.plot(traj_x, traj_y, color='blue', linewidth=2, alpha=0.7)
                     plt.plot(traj_x[0], traj_y[0], 'go', markersize=8)  # 起点
                     plt.plot(traj_x[-1], traj_y[-1], 'ro', markersize=8)  # 终点
+                    
+                    # 添加坐标轴标签和图例
+                    plt.xlabel('X坐标 (米)')
+                    plt.ylabel('Y坐标 (米)')
+                    plt.legend(['机器人轨迹', '起点', '终点'], loc='upper right')
                 
                 # 降低DPI进一步加快保存速度
                 plt.savefig(checkpoint_path, dpi=100)
