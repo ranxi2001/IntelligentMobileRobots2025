@@ -465,13 +465,13 @@ class LmsMapperNode(Node):
         super().__init__('lms_mapper')
         
         # 地图参数
-        self.resolution = 0.1  # 保持0.1米/格的分辨率为最佳精度
+        self.resolution = 0.1  # 每格代表0.1米
         self.size_x = 600  # X方向600格（覆盖60米）
-        self.size_y = 700  # Y方向700格（覆盖70米）
+        self.size_y = 650  # Y方向650格（覆盖65米）
         
         # 调整原点位置以优化显示
-        self.origin_x = 150  # 使-15米对应格子0
-        self.origin_y = 250  # 使-25米对应格子0
+        self.origin_x = 15  # 使(0,0)对应到格子(15,15)
+        self.origin_y = 15  # 使(0,0)对应到格子(15,15)
         
         # 声明参数
         self.declare_parameter('map_threshold', 1)
@@ -1304,8 +1304,8 @@ class LmsMapperNode(Node):
                 
                 # 动态计算显示范围，根据轨迹和障碍物数据
                 # 使用固定的最佳显示范围代替自动计算
-                map_bounds = [-15.0, 45.0, -25.0, 45.0]
-                self.get_logger().info(f'使用优化的固定显示范围: X=[-15, 45], Y=[-25, 45]')
+                map_bounds = [-15.0, 45.0, -15.0, 50.0]
+                self.get_logger().info(f'使用优化的固定显示范围: X=[-15, 45], Y=[-15, 50]')
                 
                 # 设置动态计算的显示范围
                 plt.xlim(map_bounds[0], map_bounds[1])
@@ -1363,8 +1363,8 @@ class LmsMapperNode(Node):
                     plt.plot(traj_x[-1], traj_y[-1], 'ro', markersize=10, label='终点')  # 改为红色终点标记
                     
                     # 使用动态计算的边界，不再使用固定值
-                    map_bounds = [-15.0, 45.0, -25.0, 45.0]  # 使用和主地图相同的范围
-                    self.get_logger().info(f'轨迹图使用固定显示范围: X=[-15, 45], Y=[-25, 45]')
+                    map_bounds = [-15.0, 45.0, -15.0, 50.0]  # 使用和主地图相同的范围
+                    self.get_logger().info(f'轨迹图使用固定显示范围: X=[-15, 45], Y=[-15, 50]')
                     plt.xlim(map_bounds[0], map_bounds[1])
                     plt.ylim(map_bounds[2], map_bounds[3])
                     

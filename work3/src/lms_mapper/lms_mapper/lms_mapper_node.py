@@ -23,42 +23,56 @@ import threading
 import time
 from collections import Counter
 import copy
+import matplotlib
 
-# 设置matplotlib支持中文显示
-plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
+# 在脚本开头添加函数来检测和设置中文字体
+def setup_chinese_font():
+    """设置中文字体，尝试多种可能的字体"""
+    # 常见的中文字体，按优先级排序
+    chinese_fonts = ['WenQuanYi Zen Hei', 'WenQuanYi Micro Hei', 'Noto Sans CJK SC', 
+                     'SimSun', 'SimHei', 'Microsoft YaHei', 
+                     'AR PL UMing CN', 'AR PL UKai CN', 'NSimSun', 
+                     'STSong', 'STFangsong', 'FangSong', 'KaiTi']
+    
+    # 检测系统中是否存在这些字体
+    available_fonts = []
+    for font in chinese_fonts:
+        if font.lower() in [f.name.lower() for f in matplotlib.font_manager.fontManager.ttflist]:
+            available_fonts.append(font)
+            print(f"找到中文字体: {font}")
+    
+    if available_fonts:
+        # 使用找到的第一个中文字体
+        plt.rcParams['font.sans-serif'] = available_fonts + ['DejaVu Sans', 'Arial Unicode MS', 'sans-serif']
+        print(f"设置中文字体为: {available_fonts[0]}")
+        return available_fonts[0]
+    else:
+        # 没有找到中文字体，使用默认设置
+        print("未找到中文字体，使用默认设置")
+        plt.rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial Unicode MS', 'sans-serif']
+        return None
+
+# 设置中文字体
+chinese_font = setup_chinese_font()
 plt.rcParams['axes.unicode_minus'] = False    # 用来正常显示负号
 
 # 移除固定的地图边界常量，改为函数来动态计算边界
 def calculate_map_bounds(min_x, max_x, min_y, max_y, padding=5.0):
-    """计算地图显示边界，带有边距"""
-    # 如果没有有效数据，使用默认值
-    if min_x == float('inf') or max_x == float('-inf') or min_y == float('inf') or max_y == float('-inf'):
-        return (-15, 50, -15, 50)  # 调整默认显示范围，更加紧凑
-        
-    # 添加边距
-    x_range = max_x - min_x
-    y_range = max_y - min_y
+    """计算用于显示的地图边界，考虑边距"""
     
-    # 确保边距至少占范围的10%，并且对y轴上限特别关注
-    x_padding = max(padding, x_range * 0.15)  # 适当调整边距百分比
-    y_padding = max(padding, y_range * 0.15)  # 保持一致的边距比例
+    # 确保我们至少包含理想显示区域
+    min_x = min(min_x, -15.0)
+    max_x = max(max_x, 45.0)
+    min_y = min(min_y, -25.0)
+    max_y = max(max_y, 45.0)
     
-    xlim = (min_x - x_padding, max_x + x_padding)
-    ylim = (min_y - y_padding, max_y + y_padding * 1.2)  # 对y轴上限稍微增加空间
-    
-    # 确保显示范围足够但不过大
-    if ylim[1] < 50:
-        ylim = (ylim[0], max(50, ylim[1]))
-    if xlim[1] < 50:
-        xlim = (xlim[0], max(50, xlim[1]))
-    
-    # 确保下限也足够低，能显示负坐标
-    if xlim[0] > -15:
-        xlim = (min(-15, xlim[0]), xlim[1])
-    if ylim[0] > -15:
-        ylim = (min(-15, ylim[0]), ylim[1])
-        
-    return xlim + ylim
+    # 根据实际数据进行有限的边界扩展
+    return [
+        min_x - padding,
+        max_x + padding,
+        min_y - padding,
+        max_y + padding
+    ]
 
 def quaternion_to_euler(q):
     """四元数转欧拉角"""
@@ -448,11 +462,18 @@ class LmsMapperNode(Node):
     """LMS数据处理和栅格地图生成节点"""
     
     def __init__(self):
-        super().__init__('lms_mapper_node')
+        super().__init__('lms_mapper')
+        
+        # 地图参数
+        self.resolution = 0.1  # 每格代表0.1米
+        self.size_x = 600  # X方向600格（覆盖60米）
+        self.size_y = 650  # Y方向650格（覆盖65米）
+        
+        # 调整原点位置以优化显示
+        self.origin_x = 15  # 使(0,0)对应到格子(15,15)
+        self.origin_y = 15  # 使(0,0)对应到格子(15,15)
         
         # 声明参数
-        self.declare_parameter('map_resolution', 0.075)  # 调整分辨率为0.075米/格
-        self.declare_parameter('map_size', 800)  # 调整地图尺寸为800x800
         self.declare_parameter('map_threshold', 1)
         self.declare_parameter('filter_points', True)
         self.declare_parameter('filter_threshold', 1.0)
@@ -462,8 +483,6 @@ class LmsMapperNode(Node):
         self.declare_parameter('save_interval', 60.0)  # 新增参数：中间地图保存间隔，默认60秒
         
         # 获取参数
-        self.resolution = self.get_parameter('map_resolution').value
-        self.map_size = self.get_parameter('map_size').value
         self.threshold = self.get_parameter('map_threshold').value
         self.filter_points = self.get_parameter('filter_points').value
         self.filter_threshold = self.get_parameter('filter_threshold').value
@@ -473,7 +492,7 @@ class LmsMapperNode(Node):
         self.save_interval = self.get_parameter('save_interval').value  # 读取中间地图保存间隔
         
         # 输出地图参数信息
-        self.get_logger().info(f'地图参数: 尺寸={self.map_size}x{self.map_size}, 分辨率={self.resolution}米/格')
+        self.get_logger().info(f'地图参数: 尺寸={self.size_x}x{self.size_y}, 分辨率={self.resolution}米/格')
         
         # 输出地图重置功能状态
         if self.map_reset_enabled:
@@ -491,11 +510,7 @@ class LmsMapperNode(Node):
             self.get_logger().info('清除过期障碍物功能已禁用，将保留所有检测到的障碍物')
         
         # 创建占用栅格地图
-        self.size_x = self.map_size
-        self.size_y = self.map_size
         self.grid_map = np.zeros((self.size_x, self.size_y), dtype=np.int8)
-        self.origin_x = self.size_x // 2
-        self.origin_y = self.size_y // 2
         self.min_x = float('inf')
         self.max_x = float('-inf')
         self.min_y = float('inf')
@@ -1239,7 +1254,7 @@ class LmsMapperNode(Node):
                 # 特别标记起点和终点
                 if len(current_trajectory) >= 2:
                     try:
-                        # 起点(蓝色)
+                        # 起点(绿色)
                         start_x, start_y = self.world_to_grid(current_trajectory[0][0], current_trajectory[0][1])
                         for dx in range(-4, 5):
                             for dy in range(-4, 5):
@@ -1247,7 +1262,7 @@ class LmsMapperNode(Node):
                                 if 0 <= gx < self.size_x and 0 <= gy < self.size_y:
                                     # 绘制圆形起点标记
                                     if dx*dx + dy*dy <= 16:
-                                        rgb_map[gy, gx] = [0, 0, 255]  # 起点蓝色
+                                        rgb_map[gy, gx] = [0, 255, 0]  # 起点绿色
                         
                         # 终点(红色)
                         end_x, end_y = self.world_to_grid(current_trajectory[-1][0], current_trajectory[-1][1])
@@ -1257,7 +1272,7 @@ class LmsMapperNode(Node):
                                 if 0 <= gx < self.size_x and 0 <= gy < self.size_y:
                                     # 绘制X形终点标记
                                     if abs(dx) == abs(dy):
-                                        rgb_map[gy, gx] = [0, 0, 0]  # 终点黑色
+                                        rgb_map[gy, gx] = [255, 0, 0]  # 终点红色
                     except Exception as mark_err:
                         self.get_logger().warn(f'标记轨迹起终点时出错: {str(mark_err)}')
             else:
@@ -1288,37 +1303,16 @@ class LmsMapperNode(Node):
                 plt.imshow(display_map, origin='lower', extent=extent)
                 
                 # 动态计算显示范围，根据轨迹和障碍物数据
-                map_bounds = calculate_map_bounds(self.min_x, self.max_x, self.min_y, self.max_y)
-                
-                # 如果轨迹数据有效，也考虑轨迹的边界
-                if current_trajectory:
-                    traj_x = [p[0] for p in current_trajectory]
-                    traj_y = [p[1] for p in current_trajectory]
-                    traj_min_x, traj_max_x = min(traj_x), max(traj_x)
-                    traj_min_y, traj_max_y = min(traj_y), max(traj_y)
-                    
-                    # 取二者边界的并集
-                    map_bounds = calculate_map_bounds(
-                        min(self.min_x, traj_min_x),
-                        max(self.max_x, traj_max_x),
-                        min(self.min_y, traj_min_y),
-                        max(self.max_y, traj_max_y)
-                    )
+                # 使用固定的最佳显示范围代替自动计算
+                map_bounds = [-15.0, 45.0, -15.0, 50.0]
+                self.get_logger().info(f'使用优化的固定显示范围: X=[-15, 45], Y=[-15, 50]')
                 
                 # 设置动态计算的显示范围
                 plt.xlim(map_bounds[0], map_bounds[1])
-                
-                # 关键修改：确保y轴范围足够大以显示所有障碍物
-                # 检查是否有高y值障碍物，如果有，确保ylim上限足够大
-                if max_world_y > map_bounds[3]:
-                    self.get_logger().warn(f'发现高y值障碍物({max_world_y:.2f})超出了原地图范围({map_bounds[3]:.2f})，自动扩展显示范围')
-                    plt.ylim(map_bounds[2], max(map_bounds[3], max_world_y + 5))
-                else:
-                    plt.ylim(map_bounds[2], map_bounds[3])
+                plt.ylim(map_bounds[2], map_bounds[3])
                 
                 # 输出最终使用的显示范围
-                final_ylim = plt.gca().get_ylim()
-                self.get_logger().info(f'最终使用的y轴显示范围: [{final_ylim[0]:.2f}, {final_ylim[1]:.2f}]')
+                self.get_logger().info(f'使用固定显示范围: X=[{map_bounds[0]:.2f}, {map_bounds[1]:.2f}], Y=[{map_bounds[2]:.2f}, {map_bounds[3]:.2f}]')
                 
                 # 根据地图边界计算适合的网格线间隔
                 x_range = map_bounds[1] - map_bounds[0]
@@ -1333,9 +1327,9 @@ class LmsMapperNode(Node):
                 plt.xticks(np.arange(math.floor(map_bounds[0]), math.ceil(map_bounds[1])+1, grid_step_m))
                 plt.yticks(np.arange(math.floor(map_bounds[2]), math.ceil(map_bounds[3])+1, grid_step_m))
                 
-                plt.xlabel('X (m)')
-                plt.ylabel('Y (m)')
-                plt.title('占用栅格图 (白色=空闲, 红色=障碍物, 绿色=轨迹, 蓝色=起点, 黑色=终点)', fontsize=14)
+                plt.xlabel('X (m)', fontsize=12)
+                plt.ylabel('Y (m)', fontsize=12)
+                plt.title('占用栅格图 (白色=空闲, 红色=障碍物与终点, 绿色=起点与轨迹)', fontsize=14)
                 
                 # 保存并关闭图像
                 try:
@@ -1365,15 +1359,12 @@ class LmsMapperNode(Node):
                     plt.plot(traj_x, traj_y, 'g-', linewidth=2, markersize=2)
                     
                     # 标记起点和终点
-                    plt.plot(traj_x[0], traj_y[0], 'bo', markersize=10, label='起点')
-                    plt.plot(traj_x[-1], traj_y[-1], 'ko', markersize=10, label='终点')  # 改为黑色终点标记
+                    plt.plot(traj_x[0], traj_y[0], 'go', markersize=10, label='起点')
+                    plt.plot(traj_x[-1], traj_y[-1], 'ro', markersize=10, label='终点')  # 改为红色终点标记
                     
                     # 使用动态计算的边界，不再使用固定值
-                    map_bounds = calculate_map_bounds(
-                        min(traj_x), max(traj_x),
-                        min(traj_y), max(traj_y),
-                        padding=5.0  # 为轨迹图提供更大的边距
-                    )
+                    map_bounds = [-15.0, 45.0, -15.0, 50.0]  # 使用和主地图相同的范围
+                    self.get_logger().info(f'轨迹图使用固定显示范围: X=[-15, 45], Y=[-15, 50]')
                     plt.xlim(map_bounds[0], map_bounds[1])
                     plt.ylim(map_bounds[2], map_bounds[3])
                     
@@ -1535,7 +1526,7 @@ class LmsMapperNode(Node):
                 # 特别标记起点和终点
                 if len(current_trajectory) >= 2:
                     try:
-                        # 起点(蓝色)
+                        # 起点(绿色)
                         start_x, start_y = self.world_to_grid(current_trajectory[0][0], current_trajectory[0][1])
                         for dx in range(-4, 5):
                             for dy in range(-4, 5):
@@ -1543,7 +1534,7 @@ class LmsMapperNode(Node):
                                 if 0 <= gx < self.size_x and 0 <= gy < self.size_y:
                                     # 绘制圆形起点标记
                                     if dx*dx + dy*dy <= 16:
-                                        rgb_map[gy, gx] = [0, 0, 255]  # 起点蓝色
+                                        rgb_map[gy, gx] = [0, 255, 0]  # 起点绿色
                         
                         # 终点(红色)
                         end_x, end_y = self.world_to_grid(current_trajectory[-1][0], current_trajectory[-1][1])
@@ -1553,7 +1544,7 @@ class LmsMapperNode(Node):
                                 if 0 <= gx < self.size_x and 0 <= gy < self.size_y:
                                     # 绘制X形终点标记
                                     if abs(dx) == abs(dy):
-                                        rgb_map[gy, gx] = [0, 0, 0]  # 终点黑色
+                                        rgb_map[gy, gx] = [255, 0, 0]  # 终点红色
                     except Exception as mark_err:
                         self.get_logger().warn(f'标记轨迹起终点时出错: {str(mark_err)}')
             else:
@@ -1620,14 +1611,14 @@ class LmsMapperNode(Node):
                 if current_trajectory and len(current_trajectory) > 1:
                     traj_x = [p[0] for p in current_trajectory]
                     traj_y = [p[1] for p in current_trajectory]
-                    plt.plot(traj_x, traj_y, color='blue', linewidth=2.5, alpha=0.8)  # 增加轨迹线宽和不透明度
-                    plt.plot(traj_x[0], traj_y[0], 'go', markersize=10)  # 增大起点标记
-                    plt.plot(traj_x[-1], traj_y[-1], 'ko', markersize=10)  # 终点改为黑色标记
+                    plt.plot(traj_x, traj_y, color='green', linewidth=2.5, alpha=0.8)  # 轨迹改为绿色
+                    plt.plot(traj_x[0], traj_y[0], 'go', markersize=10)  # 起点改为绿色标记
+                    plt.plot(traj_x[-1], traj_y[-1], 'ro', markersize=10)  # 终点改为红色标记
                     
                     # 添加坐标轴标签和图例
-                    plt.xlabel('X坐标 (米)', fontsize=12)  # 增大标签字体
-                    plt.ylabel('Y坐标 (米)', fontsize=12)  # 增大标签字体
-                    plt.legend(['机器人轨迹', '起点', '终点'], loc='upper right', fontsize=10)  # 增大图例字体
+                    plt.xlabel('X坐标 (米)', fontsize=12)
+                    plt.ylabel('Y坐标 (米)', fontsize=12)
+                    plt.legend(['机器人轨迹', '起点', '终点'], loc='upper right', fontsize=10)
                 
                 # 提高DPI以增加清晰度
                 plt.savefig(checkpoint_path, dpi=150)

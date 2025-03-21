@@ -133,6 +133,8 @@ cd /IntelligentMobileRobots2025/work3 && chmod +x 03_map_generation.sh && ./03_m
 
 
 
+分辨率与地图大小
+
 这里有一个关键限制：world_to_grid函数会将坐标限制在(0, 0)到(size_x-1, size_y-1)的范围内。
 世界坐标的值：
 如果地图原点(origin_x, origin_y)设置在地图中心(map_size//2, map_size//2)，那么超出地图中心一定范围的点会被截断。
