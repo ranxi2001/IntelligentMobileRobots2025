@@ -33,30 +33,30 @@ def calculate_map_bounds(min_x, max_x, min_y, max_y, padding=5.0):
     """计算地图显示边界，带有边距"""
     # 如果没有有效数据，使用默认值
     if min_x == float('inf') or max_x == float('-inf') or min_y == float('inf') or max_y == float('-inf'):
-        return (-10, 45, -14, 70)  # 修改默认值，将y轴上限从50扩大到70
+        return (-15, 50, -15, 50)  # 调整默认显示范围，更加紧凑
         
     # 添加边距
     x_range = max_x - min_x
     y_range = max_y - min_y
     
     # 确保边距至少占范围的10%，并且对y轴上限特别关注
-    x_padding = max(padding, x_range * 0.2)  # 增加边距百分比
-    y_padding = max(padding, y_range * 0.25)  # 增加y轴的边距比例
+    x_padding = max(padding, x_range * 0.15)  # 适当调整边距百分比
+    y_padding = max(padding, y_range * 0.15)  # 保持一致的边距比例
     
     xlim = (min_x - x_padding, max_x + x_padding)
-    ylim = (min_y - y_padding, max_y + y_padding * 1.5)  # 对y轴上限额外增加空间
+    ylim = (min_y - y_padding, max_y + y_padding * 1.2)  # 对y轴上限稍微增加空间
     
-    # 确保显示范围足够大
-    if ylim[1] < 100:
-        ylim = (ylim[0], max(100, ylim[1]))
-    if xlim[1] < 80:
-        xlim = (xlim[0], max(80, xlim[1]))
+    # 确保显示范围足够但不过大
+    if ylim[1] < 50:
+        ylim = (ylim[0], max(50, ylim[1]))
+    if xlim[1] < 50:
+        xlim = (xlim[0], max(50, xlim[1]))
     
     # 确保下限也足够低，能显示负坐标
-    if xlim[0] > -20:
-        xlim = (min(-20, xlim[0]), xlim[1])
-    if ylim[0] > -20:
-        ylim = (min(-20, ylim[0]), ylim[1])
+    if xlim[0] > -15:
+        xlim = (min(-15, xlim[0]), xlim[1])
+    if ylim[0] > -15:
+        ylim = (min(-15, ylim[0]), ylim[1])
         
     return xlim + ylim
 
@@ -152,41 +152,21 @@ class OccupancyGridMapper:
         返回:
             (grid_x, grid_y): 栅格坐标系下的整数坐标
         """
-        try:
-            # 检查输入坐标是否在合理范围内 - 扩大允许范围
-            if not -200 < x < 200 or not -200 < y < 200:
-                self.get_logger().warn(f'世界坐标超出扩展范围: x={x}, y={y}')
-            
-            # 将世界坐标转换为栅格坐标
-            # origin_x和origin_y表示地图原点(0,0)在栅格中的位置（通常是地图中心）
-            # resolution是每个栅格代表的实际距离（单位：米）
-            grid_x = int(self.origin_x + x / self.resolution)
-            grid_y = int(self.origin_y + y / self.resolution)
-            
-            # 调试输出 - 每500次转换输出一次以避免日志过多
-            if not hasattr(self, '_world_to_grid_count'):
-                self._world_to_grid_count = 0
-            self._world_to_grid_count += 1
-            
-            if self._world_to_grid_count % 500 == 0:
-                self.get_logger().info(f'【坐标转换】世界坐标(x={x:.2f},y={y:.2f}) --> 栅格坐标(grid_x={grid_x},grid_y={grid_y})')
-                self.get_logger().info(f'【参数确认】原点(origin_x={self.origin_x},origin_y={self.origin_y}), 分辨率={self.resolution}米/格')
-            
-            # 扩大栅格范围处理 - 动态处理超出范围的坐标
-            # 如果坐标超出范围，记录日志但仍返回实际计算值，由调用者决定如何处理
-            if grid_x < 0 or grid_x >= self.size_x or grid_y < 0 or grid_y >= self.size_y:
-                if self._world_to_grid_count % 100 == 0:  # 减少日志频率
-                    self.get_logger().warn(f'栅格坐标超出地图范围: (grid_x={grid_x},grid_y={grid_y}), 来自世界坐标(x={x:.2f},y={y:.2f})')
-                
-                # 仍然需要限制在合理范围内以避免数组访问错误
-                grid_x = max(0, min(grid_x, self.size_x - 1))
-                grid_y = max(0, min(grid_y, self.size_y - 1))
-            
-            return grid_x, grid_y
-        except Exception as e:
-            self.get_logger().error(f'世界坐标转栅格坐标出错: {str(e)}')
-            # 返回地图中心作为默认值
-            return self.origin_x, self.origin_y
+        # 检查输入坐标是否在合理范围内 - 扩大允许范围
+        if not -200 < x < 200 or not -200 < y < 200:
+            print(f'世界坐标超出扩展范围: x={x}, y={y}')
+        
+        # 将世界坐标转换为栅格坐标
+        # origin_x和origin_y表示地图原点(0,0)在栅格中的位置（通常是地图中心）
+        # resolution是每个栅格代表的实际距离（单位：米）
+        grid_x = int(self.origin_x + x / self.resolution)
+        grid_y = int(self.origin_y + y / self.resolution)
+        
+        # 确保坐标在栅格范围内
+        grid_x = max(0, min(grid_x, self.size_x - 1))
+        grid_y = max(0, min(grid_y, self.size_y - 1))
+        
+        return grid_x, grid_y
     
     def grid_to_world(self, grid_x, grid_y):
         """将栅格坐标转换为世界坐标"""
@@ -471,8 +451,8 @@ class LmsMapperNode(Node):
         super().__init__('lms_mapper_node')
         
         # 声明参数
-        self.declare_parameter('map_resolution', 0.1)  # 提高默认分辨率从0.2到0.1
-        self.declare_parameter('map_size', 1000)  # 增加默认地图尺寸从500到1000
+        self.declare_parameter('map_resolution', 0.075)  # 调整分辨率为0.075米/格
+        self.declare_parameter('map_size', 800)  # 调整地图尺寸为800x800
         self.declare_parameter('map_threshold', 1)
         self.declare_parameter('filter_points', True)
         self.declare_parameter('filter_threshold', 1.0)
@@ -1081,41 +1061,21 @@ class LmsMapperNode(Node):
         返回:
             (grid_x, grid_y): 栅格坐标系下的整数坐标
         """
-        try:
-            # 检查输入坐标是否在合理范围内 - 扩大允许范围
-            if not -200 < x < 200 or not -200 < y < 200:
-                self.get_logger().warn(f'世界坐标超出扩展范围: x={x}, y={y}')
-            
-            # 将世界坐标转换为栅格坐标
-            # origin_x和origin_y表示地图原点(0,0)在栅格中的位置（通常是地图中心）
-            # resolution是每个栅格代表的实际距离（单位：米）
-            grid_x = int(self.origin_x + x / self.resolution)
-            grid_y = int(self.origin_y + y / self.resolution)
-            
-            # 调试输出 - 每500次转换输出一次以避免日志过多
-            if not hasattr(self, '_world_to_grid_count'):
-                self._world_to_grid_count = 0
-            self._world_to_grid_count += 1
-            
-            if self._world_to_grid_count % 500 == 0:
-                self.get_logger().info(f'【坐标转换】世界坐标(x={x:.2f},y={y:.2f}) --> 栅格坐标(grid_x={grid_x},grid_y={grid_y})')
-                self.get_logger().info(f'【参数确认】原点(origin_x={self.origin_x},origin_y={self.origin_y}), 分辨率={self.resolution}米/格')
-            
-            # 扩大栅格范围处理 - 动态处理超出范围的坐标
-            # 如果坐标超出范围，记录日志但仍返回实际计算值，由调用者决定如何处理
-            if grid_x < 0 or grid_x >= self.size_x or grid_y < 0 or grid_y >= self.size_y:
-                if self._world_to_grid_count % 100 == 0:  # 减少日志频率
-                    self.get_logger().warn(f'栅格坐标超出地图范围: (grid_x={grid_x},grid_y={grid_y}), 来自世界坐标(x={x:.2f},y={y:.2f})')
-                
-                # 仍然需要限制在合理范围内以避免数组访问错误
-                grid_x = max(0, min(grid_x, self.size_x - 1))
-                grid_y = max(0, min(grid_y, self.size_y - 1))
-            
-            return grid_x, grid_y
-        except Exception as e:
-            self.get_logger().error(f'世界坐标转栅格坐标出错: {str(e)}')
-            # 返回地图中心作为默认值
-            return self.origin_x, self.origin_y
+        # 检查输入坐标是否在合理范围内 - 扩大允许范围
+        if not -200 < x < 200 or not -200 < y < 200:
+            print(f'世界坐标超出扩展范围: x={x}, y={y}')
+        
+        # 将世界坐标转换为栅格坐标
+        # origin_x和origin_y表示地图原点(0,0)在栅格中的位置（通常是地图中心）
+        # resolution是每个栅格代表的实际距离（单位：米）
+        grid_x = int(self.origin_x + x / self.resolution)
+        grid_y = int(self.origin_y + y / self.resolution)
+        
+        # 确保坐标在栅格范围内
+        grid_x = max(0, min(grid_x, self.size_x - 1))
+        grid_y = max(0, min(grid_y, self.size_y - 1))
+        
+        return grid_x, grid_y
     
     def publish_map(self):
         """发布占用栅格地图"""
@@ -1297,7 +1257,7 @@ class LmsMapperNode(Node):
                                 if 0 <= gx < self.size_x and 0 <= gy < self.size_y:
                                     # 绘制X形终点标记
                                     if abs(dx) == abs(dy):
-                                        rgb_map[gy, gx] = [255, 0, 0]  # 终点红色
+                                        rgb_map[gy, gx] = [0, 0, 0]  # 终点黑色
                     except Exception as mark_err:
                         self.get_logger().warn(f'标记轨迹起终点时出错: {str(mark_err)}')
             else:
@@ -1375,7 +1335,7 @@ class LmsMapperNode(Node):
                 
                 plt.xlabel('X (m)')
                 plt.ylabel('Y (m)')
-                plt.title('占用栅格图 (白色=空闲, 红色=障碍物)', fontsize=14)
+                plt.title('占用栅格图 (白色=空闲, 红色=障碍物, 绿色=轨迹, 蓝色=起点, 黑色=终点)', fontsize=14)
                 
                 # 保存并关闭图像
                 try:
@@ -1406,7 +1366,7 @@ class LmsMapperNode(Node):
                     
                     # 标记起点和终点
                     plt.plot(traj_x[0], traj_y[0], 'bo', markersize=10, label='起点')
-                    plt.plot(traj_x[-1], traj_y[-1], 'ro', markersize=10, label='终点')
+                    plt.plot(traj_x[-1], traj_y[-1], 'ko', markersize=10, label='终点')  # 改为黑色终点标记
                     
                     # 使用动态计算的边界，不再使用固定值
                     map_bounds = calculate_map_bounds(
@@ -1593,14 +1553,14 @@ class LmsMapperNode(Node):
                                 if 0 <= gx < self.size_x and 0 <= gy < self.size_y:
                                     # 绘制X形终点标记
                                     if abs(dx) == abs(dy):
-                                        rgb_map[gy, gx] = [255, 0, 0]  # 终点红色
+                                        rgb_map[gy, gx] = [0, 0, 0]  # 终点黑色
                     except Exception as mark_err:
                         self.get_logger().warn(f'标记轨迹起终点时出错: {str(mark_err)}')
             else:
                 self.get_logger().warn('没有轨迹点可绘制')
             
             # 保存简化版的地图
-            fig = plt.figure(figsize=(15, 15))  # 增加图像尺寸
+            fig = plt.figure(figsize=(12, 12))  # 优化图像尺寸
             try:
                 # 计算完整地图的世界坐标范围
                 extent = [
@@ -1623,10 +1583,10 @@ class LmsMapperNode(Node):
                     
                     # 取二者边界的并集，并确保提供足够大的显示范围
                     map_bounds = calculate_map_bounds(
-                        min(self.min_x, traj_min_x) - 20.0,  # 左侧额外留出空间
-                        max(self.max_x, traj_max_x) + 20.0,  # 右侧额外留出空间
-                        min(self.min_y, traj_min_y) - 20.0,  # 下方额外留出空间
-                        max(self.max_y, traj_max_y) + 30.0   # 上方额外留出空间
+                        min(self.min_x, traj_min_x) - 10.0,  # 减少左侧额外空间
+                        max(self.max_x, traj_max_x) + 10.0,  # 减少右侧额外空间
+                        min(self.min_y, traj_min_y) - 10.0,  # 减少下方额外空间
+                        max(self.max_y, traj_max_y) + 15.0   # 保持上方一定空间
                     )
                 
                 # 输出当前地图边界以便调试
@@ -1639,11 +1599,11 @@ class LmsMapperNode(Node):
                 plt.xlim(map_bounds[0], map_bounds[1])
                 plt.ylim(map_bounds[2], map_bounds[3])
                 
-                # 计算合适的网格线间隔
+                # 计算合适的网格线间隔 - 提高网格线密度使地图更清晰
                 x_range = map_bounds[1] - map_bounds[0]
                 y_range = map_bounds[3] - map_bounds[2]
-                grid_step_m = min(10, max(x_range, y_range) / 8)  # 增加网格线数量
-                grid_step_m = max(2, round(grid_step_m))  # 至少2米，并取整
+                grid_step_m = min(5, max(x_range, y_range) / 10)  # 增加网格线数量
+                grid_step_m = max(1, round(grid_step_m))  # 至少1米，并取整
                 
                 # 设置网格线
                 plt.grid(True, color='gray', linestyle='-', linewidth=0.5, alpha=0.3)
@@ -1660,17 +1620,17 @@ class LmsMapperNode(Node):
                 if current_trajectory and len(current_trajectory) > 1:
                     traj_x = [p[0] for p in current_trajectory]
                     traj_y = [p[1] for p in current_trajectory]
-                    plt.plot(traj_x, traj_y, color='blue', linewidth=2, alpha=0.7)
-                    plt.plot(traj_x[0], traj_y[0], 'go', markersize=8)  # 起点
-                    plt.plot(traj_x[-1], traj_y[-1], 'ro', markersize=8)  # 终点
+                    plt.plot(traj_x, traj_y, color='blue', linewidth=2.5, alpha=0.8)  # 增加轨迹线宽和不透明度
+                    plt.plot(traj_x[0], traj_y[0], 'go', markersize=10)  # 增大起点标记
+                    plt.plot(traj_x[-1], traj_y[-1], 'ko', markersize=10)  # 终点改为黑色标记
                     
                     # 添加坐标轴标签和图例
-                    plt.xlabel('X坐标 (米)')
-                    plt.ylabel('Y坐标 (米)')
-                    plt.legend(['机器人轨迹', '起点', '终点'], loc='upper right')
+                    plt.xlabel('X坐标 (米)', fontsize=12)  # 增大标签字体
+                    plt.ylabel('Y坐标 (米)', fontsize=12)  # 增大标签字体
+                    plt.legend(['机器人轨迹', '起点', '终点'], loc='upper right', fontsize=10)  # 增大图例字体
                 
-                # 降低DPI进一步加快保存速度
-                plt.savefig(checkpoint_path, dpi=100)
+                # 提高DPI以增加清晰度
+                plt.savefig(checkpoint_path, dpi=150)
                 self.get_logger().info(f'已保存中间地图 #{self.checkpoint_counter} 到: {checkpoint_path}')
             except Exception as e:
                 self.get_logger().error(f'保存中间地图时出错: {str(e)}')

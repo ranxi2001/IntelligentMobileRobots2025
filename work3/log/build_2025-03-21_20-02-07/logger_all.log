@@ -110,3 +110,50 @@
 [5.580s] INFO:colcon.colcon_core.shell:Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
 [5.581s] DEBUG:colcon.colcon_core.shell:Skip shell extension 'dsv' for command environment
 [10.648s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/IntelligentMobileRobots2025/work3/src/lms_mapper': PYTHONPATH=/IntelligentMobileRobots2025/work3/build/lms_mapper/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages: /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/lms_mapper build --build-base /IntelligentMobileRobots2025/work3/build/lms_mapper/build install --record /IntelligentMobileRobots2025/work3/build/lms_mapper/install.log --single-version-externally-managed install_data
+[14.503s] Level 1:colcon.colcon_core.environment:checking '/IntelligentMobileRobots2025/work3/install/lms_mapper' for CMake module files
+[14.531s] Level 1:colcon.colcon_core.environment:checking '/IntelligentMobileRobots2025/work3/install/lms_mapper' for CMake config files
+[14.533s] Level 1:colcon.colcon_core.environment:checking '/IntelligentMobileRobots2025/work3/install/lms_mapper/lib'
+[14.533s] Level 1:colcon.colcon_core.environment:checking '/IntelligentMobileRobots2025/work3/install/lms_mapper/bin'
+[14.533s] Level 1:colcon.colcon_core.shell:create_environment_hook('lms_mapper', 'path')
+[14.533s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/hook/path.ps1'
+[14.534s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/hook/path.dsv'
+[14.534s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/hook/path.sh'
+[14.531s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoked command in '/IntelligentMobileRobots2025/work3/src/lms_mapper' returned '0': PYTHONPATH=/IntelligentMobileRobots2025/work3/build/lms_mapper/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages: /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/lms_mapper build --build-base /IntelligentMobileRobots2025/work3/build/lms_mapper/build install --record /IntelligentMobileRobots2025/work3/build/lms_mapper/install.log --single-version-externally-managed install_data
+[14.569s] Level 1:colcon.colcon_core.environment:checking '/IntelligentMobileRobots2025/work3/install/lms_mapper/lib/pkgconfig/lms_mapper.pc'
+[14.569s] Level 1:colcon.colcon_core.environment:checking '/IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages'
+[14.569s] Level 1:colcon.colcon_core.shell:create_environment_hook('lms_mapper', 'pythonpath')
+[14.570s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/hook/pythonpath.ps1'
+[14.570s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/hook/pythonpath.dsv'
+[14.570s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/hook/pythonpath.sh'
+[14.571s] Level 1:colcon.colcon_core.environment:checking '/IntelligentMobileRobots2025/work3/install/lms_mapper/bin'
+[14.572s] Level 1:colcon.colcon_core.shell:create_environment_hook('lms_mapper', 'pythonscriptspath')
+[14.610s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/hook/pythonscriptspath.ps1'
+[14.611s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/hook/pythonscriptspath.dsv'
+[14.611s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/hook/pythonscriptspath.sh'
+[14.612s] Level 1:colcon.colcon_core.environment:create_environment_scripts_only(lms_mapper)
+[14.612s] INFO:colcon.colcon_core.shell:Creating package script '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/package.ps1'
+[14.647s] INFO:colcon.colcon_core.shell:Creating package descriptor '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/package.dsv'
+[14.648s] INFO:colcon.colcon_core.shell:Creating package script '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/package.sh'
+[14.652s] INFO:colcon.colcon_core.shell:Creating package script '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/package.bash'
+[14.687s] INFO:colcon.colcon_core.shell:Creating package script '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/package.zsh'
+[14.688s] Level 1:colcon.colcon_core.environment:create_file_with_runtime_dependencies(/IntelligentMobileRobots2025/work3/install/lms_mapper/share/colcon-core/packages/lms_mapper)
+[14.689s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:closing loop
+[14.692s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:loop closed
+[14.692s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:run_until_complete finished with '0'
+[14.693s] DEBUG:colcon.colcon_core.event_reactor:joining thread
+[14.774s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.notify_send': Could not find 'notify-send'
+[14.774s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.terminal_notifier': Not used on non-Darwin systems
+[14.774s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.win32': Not used on non-Windows systems
+[14.774s] INFO:colcon.colcon_notification.desktop_notification:Sending desktop notification using 'notify2'
+[14.854s] DEBUG:colcon.colcon_notification.desktop_notification.notify2:Failed to initialize notify2: org.freedesktop.DBus.Error.Spawn.ExecFailed: /usr/bin/dbus-launch terminated abnormally without any error message
+[14.859s] DEBUG:colcon.colcon_core.event_reactor:joined thread
+[14.859s] INFO:colcon.colcon_core.shell:Creating prefix script '/IntelligentMobileRobots2025/work3/install/local_setup.ps1'
+[14.861s] INFO:colcon.colcon_core.shell:Creating prefix util module '/IntelligentMobileRobots2025/work3/install/_local_setup_util_ps1.py'
+[14.880s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/IntelligentMobileRobots2025/work3/install/setup.ps1'
+[14.881s] INFO:colcon.colcon_core.shell:Creating prefix script '/IntelligentMobileRobots2025/work3/install/local_setup.sh'
+[14.882s] INFO:colcon.colcon_core.shell:Creating prefix util module '/IntelligentMobileRobots2025/work3/install/_local_setup_util_sh.py'
+[14.882s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/IntelligentMobileRobots2025/work3/install/setup.sh'
+[14.886s] INFO:colcon.colcon_core.shell:Creating prefix script '/IntelligentMobileRobots2025/work3/install/local_setup.bash'
+[14.886s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/IntelligentMobileRobots2025/work3/install/setup.bash'
+[14.893s] INFO:colcon.colcon_core.shell:Creating prefix script '/IntelligentMobileRobots2025/work3/install/local_setup.zsh'
+[14.895s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/IntelligentMobileRobots2025/work3/install/setup.zsh'
