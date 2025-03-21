@@ -1,0 +1,36 @@
+[12.807s] Invoking command in '/IntelligentMobileRobots2025/work3/build/lms_mapper': PYTHONPATH=/IntelligentMobileRobots2025/work3/build/lms_mapper/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages: /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --uninstall --editable --build-directory /IntelligentMobileRobots2025/work3/build/lms_mapper/build
+[17.985s] running develop
+[18.725s] Removing /IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages/lms-mapper.egg-link (link to .)
+[19.440s] Invoked command in '/IntelligentMobileRobots2025/work3/build/lms_mapper' returned '0': PYTHONPATH=/IntelligentMobileRobots2025/work3/build/lms_mapper/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages: /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --uninstall --editable --build-directory /IntelligentMobileRobots2025/work3/build/lms_mapper/build
+[19.463s] Invoking command in '/IntelligentMobileRobots2025/work3/src/lms_mapper': PYTHONPATH=/IntelligentMobileRobots2025/work3/build/lms_mapper/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages: /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/lms_mapper build --build-base /IntelligentMobileRobots2025/work3/build/lms_mapper/build install --record /IntelligentMobileRobots2025/work3/build/lms_mapper/install.log --single-version-externally-managed install_data --force
+[21.371s] running egg_info
+[21.379s] writing ../../build/lms_mapper/lms_mapper.egg-info/PKG-INFO
+[21.380s] writing dependency_links to ../../build/lms_mapper/lms_mapper.egg-info/dependency_links.txt
+[21.383s] writing entry points to ../../build/lms_mapper/lms_mapper.egg-info/entry_points.txt
+[21.383s] writing requirements to ../../build/lms_mapper/lms_mapper.egg-info/requires.txt
+[21.383s] writing top-level names to ../../build/lms_mapper/lms_mapper.egg-info/top_level.txt
+[21.383s] reading manifest file '../../build/lms_mapper/lms_mapper.egg-info/SOURCES.txt'
+[21.386s] writing manifest file '../../build/lms_mapper/lms_mapper.egg-info/SOURCES.txt'
+[21.386s] running build
+[21.386s] running build_py
+[21.387s] creating /IntelligentMobileRobots2025/work3/build/lms_mapper/build
+[21.387s] creating /IntelligentMobileRobots2025/work3/build/lms_mapper/build/lib
+[21.393s] creating /IntelligentMobileRobots2025/work3/build/lms_mapper/build/lib/lms_mapper
+[21.394s] copying lms_mapper/__init__.py -> /IntelligentMobileRobots2025/work3/build/lms_mapper/build/lib/lms_mapper
+[21.394s] copying lms_mapper/lms_mapper_node.py -> /IntelligentMobileRobots2025/work3/build/lms_mapper/build/lib/lms_mapper
+[21.394s] running install
+[21.394s] running install_lib
+[21.394s] creating /IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages/lms_mapper
+[21.394s] copying /IntelligentMobileRobots2025/work3/build/lms_mapper/build/lib/lms_mapper/__init__.py -> /IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages/lms_mapper
+[21.396s] copying /IntelligentMobileRobots2025/work3/build/lms_mapper/build/lib/lms_mapper/lms_mapper_node.py -> /IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages/lms_mapper
+[21.396s] byte-compiling /IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages/lms_mapper/__init__.py to __init__.cpython-310.pyc
+[21.405s] byte-compiling /IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages/lms_mapper/lms_mapper_node.py to lms_mapper_node.cpython-310.pyc
+[22.003s] running install_data
+[22.003s] copying resource/lms_mapper -> /IntelligentMobileRobots2025/work3/install/lms_mapper/share/ament_index/resource_index/packages
+[22.003s] copying package.xml -> /IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper
+[22.029s] running install_egg_info
+[22.033s] Copying ../../build/lms_mapper/lms_mapper.egg-info to /IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages/lms_mapper-0.0.1-py3.10.egg-info
+[22.033s] running install_scripts
+[22.460s] Installing lms_mapper_node script to /IntelligentMobileRobots2025/work3/install/lms_mapper/bin
+[22.498s] writing list of installed files to '/IntelligentMobileRobots2025/work3/build/lms_mapper/install.log'
+[23.026s] Invoked command in '/IntelligentMobileRobots2025/work3/src/lms_mapper' returned '0': PYTHONPATH=/IntelligentMobileRobots2025/work3/build/lms_mapper/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages: /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/lms_mapper build --build-base /IntelligentMobileRobots2025/work3/build/lms_mapper/build install --record /IntelligentMobileRobots2025/work3/build/lms_mapper/install.log --single-version-externally-managed install_data --force

@@ -1,0 +1,19 @@
+======== 阶段03-地图生成 日志开始 Fri Mar 21 17:18:19 CST 2025 ========
+正在设置ROS2环境...
+设置工作空间环境...
+提示: 没有找到lms_mapper_node可执行文件，将直接使用Python脚本
+正在启动LMS Mapper节点...
+执行: python3 /IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py --ros-args -p map_save_path:=occupancy_grid.png
+设置ROS2使用模拟时钟...
+usage: ros2 param set [-h] [--spin-time SPIN_TIME] [-s] [--no-daemon]
+                      [--include-hidden-nodes]
+                      node_name parameter_name value
+ros2 param set: error: the following arguments are required: value
+无法设置全局参数，将在节点启动时设置
+等待节点启动...
+Traceback (most recent call last):
+  File "/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py", line 1, in <module>
+    class LmsMapperNode(Node):
+NameError: name 'Node' is not defined. Did you mean: 'None'?
+❌ 错误: LMS Mapper节点启动失败，进程不存在
+正在清理进程...

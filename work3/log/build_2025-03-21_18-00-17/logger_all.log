@@ -1,0 +1,214 @@
+[1.214s] DEBUG:colcon:Command line arguments: ['/usr/bin/colcon', 'build', '--symlink-install']
+[1.215s] DEBUG:colcon:Parsed command line arguments: Namespace(log_base=None, log_level=None, verb_name='build', build_base='build', install_base='install', merge_install=False, symlink_install=True, test_result_base=None, continue_on_error=False, executor='parallel', parallel_workers=8, event_handlers=None, ignore_user_meta=False, metas=['./colcon.meta'], base_paths=['.'], packages_ignore=None, packages_ignore_regex=None, paths=None, packages_up_to=None, packages_up_to_regex=None, packages_above=None, packages_above_and_dependencies=None, packages_above_depth=None, packages_select_by_dep=None, packages_skip_by_dep=None, packages_skip_up_to=None, packages_select_build_failed=False, packages_skip_build_finished=False, packages_select_test_failures=False, packages_skip_test_passed=False, packages_select=None, packages_skip=None, packages_select_regex=None, packages_skip_regex=None, packages_start=None, packages_end=None, cmake_args=None, cmake_target=None, cmake_target_skip_unavailable=False, cmake_clean_cache=False, cmake_clean_first=False, cmake_force_configure=False, ament_cmake_args=None, catkin_cmake_args=None, catkin_skip_building_tests=False, mixin_files=None, mixin=None, verb_parser=<colcon_mixin.mixin.mixin_argument.MixinArgumentDecorator object at 0x7ffffe1feb90>, verb_extension=<colcon_core.verb.build.BuildVerb object at 0x7ffffe1fe620>, main=<bound method BuildVerb.main of <colcon_core.verb.build.BuildVerb object at 0x7ffffe1fe620>>, mixin_verb=('build',))
+[2.369s] Level 1:colcon.colcon_core.package_discovery:discover_packages(colcon_meta) check parameters
+[2.378s] INFO:colcon.colcon_metadata.package_discovery.colcon_meta:Using configuration from '/root/.colcon/metadata/default/Gazebo.meta'
+[2.379s] INFO:colcon.colcon_metadata.package_discovery.colcon_meta:Using configuration from '/root/.colcon/metadata/default/fastrtps.meta'
+[2.379s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) check parameters
+[2.379s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) check parameters
+[2.379s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) check parameters
+[2.379s] Level 1:colcon.colcon_core.package_discovery:discover_packages(colcon_meta) discover
+[2.379s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) discover
+[2.379s] INFO:colcon.colcon_core.package_discovery:Crawling recursively for packages in '/IntelligentMobileRobots2025/work3'
+[2.379s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['ignore', 'ignore_ament_install']
+[2.379s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ignore'
+[2.379s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ignore_ament_install'
+[2.379s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['colcon_pkg']
+[2.390s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'colcon_pkg'
+[2.390s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['colcon_meta']
+[2.390s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'colcon_meta'
+[2.390s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['ros']
+[2.390s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ros'
+[2.466s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['cmake', 'python']
+[2.472s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'cmake'
+[2.472s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'python'
+[2.472s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['python_setup_py']
+[2.472s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'python_setup_py'
+[2.472s] Level 1:colcon.colcon_core.package_identification:_identify(build) by extensions ['ignore', 'ignore_ament_install']
+[2.472s] Level 1:colcon.colcon_core.package_identification:_identify(build) by extension 'ignore'
+[2.472s] Level 1:colcon.colcon_core.package_identification:_identify(build) ignored
+[2.472s] Level 1:colcon.colcon_core.package_identification:_identify(install) by extensions ['ignore', 'ignore_ament_install']
+[2.472s] Level 1:colcon.colcon_core.package_identification:_identify(install) by extension 'ignore'
+[2.472s] Level 1:colcon.colcon_core.package_identification:_identify(install) ignored
+[2.472s] Level 1:colcon.colcon_core.package_identification:_identify(lms_data.bag) by extensions ['ignore', 'ignore_ament_install']
+[2.472s] Level 1:colcon.colcon_core.package_identification:_identify(lms_data.bag) by extension 'ignore'
+[2.472s] Level 1:colcon.colcon_core.package_identification:_identify(lms_data.bag) by extension 'ignore_ament_install'
+[2.486s] Level 1:colcon.colcon_core.package_identification:_identify(lms_data.bag) by extensions ['colcon_pkg']
+[2.486s] Level 1:colcon.colcon_core.package_identification:_identify(lms_data.bag) by extension 'colcon_pkg'
+[2.486s] Level 1:colcon.colcon_core.package_identification:_identify(lms_data.bag) by extensions ['colcon_meta']
+[2.486s] Level 1:colcon.colcon_core.package_identification:_identify(lms_data.bag) by extension 'colcon_meta'
+[2.486s] Level 1:colcon.colcon_core.package_identification:_identify(lms_data.bag) by extensions ['ros']
+[2.486s] Level 1:colcon.colcon_core.package_identification:_identify(lms_data.bag) by extension 'ros'
+[2.487s] Level 1:colcon.colcon_core.package_identification:_identify(lms_data.bag) by extensions ['cmake', 'python']
+[2.487s] Level 1:colcon.colcon_core.package_identification:_identify(lms_data.bag) by extension 'cmake'
+[2.487s] Level 1:colcon.colcon_core.package_identification:_identify(lms_data.bag) by extension 'python'
+[2.487s] Level 1:colcon.colcon_core.package_identification:_identify(lms_data.bag) by extensions ['python_setup_py']
+[2.487s] Level 1:colcon.colcon_core.package_identification:_identify(lms_data.bag) by extension 'python_setup_py'
+[2.487s] Level 1:colcon.colcon_core.package_identification:_identify(log) by extensions ['ignore', 'ignore_ament_install']
+[2.487s] Level 1:colcon.colcon_core.package_identification:_identify(log) by extension 'ignore'
+[2.487s] Level 1:colcon.colcon_core.package_identification:_identify(log) ignored
+[2.487s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['ignore', 'ignore_ament_install']
+[2.487s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'ignore'
+[2.487s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'ignore_ament_install'
+[2.487s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['colcon_pkg']
+[2.487s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'colcon_pkg'
+[2.487s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['colcon_meta']
+[2.487s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'colcon_meta'
+[2.487s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['ros']
+[2.487s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'ros'
+[2.488s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['cmake', 'python']
+[2.488s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'cmake'
+[2.488s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'python'
+[2.488s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['python_setup_py']
+[2.488s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'python_setup_py'
+[2.488s] Level 1:colcon.colcon_core.package_identification:_identify(src/lms_data) by extensions ['ignore', 'ignore_ament_install']
+[2.488s] Level 1:colcon.colcon_core.package_identification:_identify(src/lms_data) by extension 'ignore'
+[2.488s] Level 1:colcon.colcon_core.package_identification:_identify(src/lms_data) by extension 'ignore_ament_install'
+[2.488s] Level 1:colcon.colcon_core.package_identification:_identify(src/lms_data) by extensions ['colcon_pkg']
+[2.488s] Level 1:colcon.colcon_core.package_identification:_identify(src/lms_data) by extension 'colcon_pkg'
+[2.488s] Level 1:colcon.colcon_core.package_identification:_identify(src/lms_data) by extensions ['colcon_meta']
+[2.488s] Level 1:colcon.colcon_core.package_identification:_identify(src/lms_data) by extension 'colcon_meta'
+[2.488s] Level 1:colcon.colcon_core.package_identification:_identify(src/lms_data) by extensions ['ros']
+[2.488s] Level 1:colcon.colcon_core.package_identification:_identify(src/lms_data) by extension 'ros'
+[2.538s] DEBUG:colcon.colcon_core.package_identification:Package 'src/lms_data' with type 'ros.ament_python' and name 'lms_data'
+[2.538s] Level 1:colcon.colcon_core.package_identification:_identify(src/lms_mapper) by extensions ['ignore', 'ignore_ament_install']
+[2.538s] Level 1:colcon.colcon_core.package_identification:_identify(src/lms_mapper) by extension 'ignore'
+[2.539s] Level 1:colcon.colcon_core.package_identification:_identify(src/lms_mapper) by extension 'ignore_ament_install'
+[2.539s] Level 1:colcon.colcon_core.package_identification:_identify(src/lms_mapper) by extensions ['colcon_pkg']
+[2.539s] Level 1:colcon.colcon_core.package_identification:_identify(src/lms_mapper) by extension 'colcon_pkg'
+[2.539s] Level 1:colcon.colcon_core.package_identification:_identify(src/lms_mapper) by extensions ['colcon_meta']
+[2.539s] Level 1:colcon.colcon_core.package_identification:_identify(src/lms_mapper) by extension 'colcon_meta'
+[2.539s] Level 1:colcon.colcon_core.package_identification:_identify(src/lms_mapper) by extensions ['ros']
+[2.539s] Level 1:colcon.colcon_core.package_identification:_identify(src/lms_mapper) by extension 'ros'
+[2.540s] DEBUG:colcon.colcon_core.package_identification:Package 'src/lms_mapper' with type 'ros.ament_python' and name 'lms_mapper'
+[2.540s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) using defaults
+[2.540s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) discover
+[2.540s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) using defaults
+[2.540s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) discover
+[2.540s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) using defaults
+[2.713s] Level 5:colcon.colcon_core.verb:set package 'lms_data' build argument 'cmake_args' from command line to 'None'
+[2.717s] Level 5:colcon.colcon_core.verb:set package 'lms_data' build argument 'cmake_target' from command line to 'None'
+[2.717s] Level 5:colcon.colcon_core.verb:set package 'lms_data' build argument 'cmake_target_skip_unavailable' from command line to 'False'
+[2.717s] Level 5:colcon.colcon_core.verb:set package 'lms_data' build argument 'cmake_clean_cache' from command line to 'False'
+[2.717s] Level 5:colcon.colcon_core.verb:set package 'lms_data' build argument 'cmake_clean_first' from command line to 'False'
+[2.717s] Level 5:colcon.colcon_core.verb:set package 'lms_data' build argument 'cmake_force_configure' from command line to 'False'
+[2.717s] Level 5:colcon.colcon_core.verb:set package 'lms_data' build argument 'ament_cmake_args' from command line to 'None'
+[2.717s] Level 5:colcon.colcon_core.verb:set package 'lms_data' build argument 'catkin_cmake_args' from command line to 'None'
+[2.717s] Level 5:colcon.colcon_core.verb:set package 'lms_data' build argument 'catkin_skip_building_tests' from command line to 'False'
+[2.717s] DEBUG:colcon.colcon_core.verb:Building package 'lms_data' with the following arguments: {'ament_cmake_args': None, 'build_base': '/IntelligentMobileRobots2025/work3/build/lms_data', 'catkin_cmake_args': None, 'catkin_skip_building_tests': False, 'cmake_args': None, 'cmake_clean_cache': False, 'cmake_clean_first': False, 'cmake_force_configure': False, 'cmake_target': None, 'cmake_target_skip_unavailable': False, 'install_base': '/IntelligentMobileRobots2025/work3/install/lms_data', 'merge_install': False, 'path': '/IntelligentMobileRobots2025/work3/src/lms_data', 'symlink_install': True, 'test_result_base': None}
+[2.717s] Level 5:colcon.colcon_core.verb:set package 'lms_mapper' build argument 'cmake_args' from command line to 'None'
+[2.717s] Level 5:colcon.colcon_core.verb:set package 'lms_mapper' build argument 'cmake_target' from command line to 'None'
+[2.717s] Level 5:colcon.colcon_core.verb:set package 'lms_mapper' build argument 'cmake_target_skip_unavailable' from command line to 'False'
+[2.717s] Level 5:colcon.colcon_core.verb:set package 'lms_mapper' build argument 'cmake_clean_cache' from command line to 'False'
+[2.717s] Level 5:colcon.colcon_core.verb:set package 'lms_mapper' build argument 'cmake_clean_first' from command line to 'False'
+[2.717s] Level 5:colcon.colcon_core.verb:set package 'lms_mapper' build argument 'cmake_force_configure' from command line to 'False'
+[2.717s] Level 5:colcon.colcon_core.verb:set package 'lms_mapper' build argument 'ament_cmake_args' from command line to 'None'
+[2.717s] Level 5:colcon.colcon_core.verb:set package 'lms_mapper' build argument 'catkin_cmake_args' from command line to 'None'
+[2.717s] Level 5:colcon.colcon_core.verb:set package 'lms_mapper' build argument 'catkin_skip_building_tests' from command line to 'False'
+[2.717s] DEBUG:colcon.colcon_core.verb:Building package 'lms_mapper' with the following arguments: {'ament_cmake_args': None, 'build_base': '/IntelligentMobileRobots2025/work3/build/lms_mapper', 'catkin_cmake_args': None, 'catkin_skip_building_tests': False, 'cmake_args': None, 'cmake_clean_cache': False, 'cmake_clean_first': False, 'cmake_force_configure': False, 'cmake_target': None, 'cmake_target_skip_unavailable': False, 'install_base': '/IntelligentMobileRobots2025/work3/install/lms_mapper', 'merge_install': False, 'path': '/IntelligentMobileRobots2025/work3/src/lms_mapper', 'symlink_install': True, 'test_result_base': None}
+[2.717s] INFO:colcon.colcon_core.executor:Executing jobs using 'parallel' executor
+[2.774s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:run_until_complete
+[2.781s] INFO:colcon.colcon_ros.task.ament_python.build:Building ROS package in '/IntelligentMobileRobots2025/work3/src/lms_data' with build type 'ament_python'
+[2.781s] Level 1:colcon.colcon_core.shell:create_environment_hook('lms_data', 'ament_prefix_path')
+[2.782s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_core.shell.bat': Not used on non-Windows systems
+[2.782s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/install/lms_data/share/lms_data/hook/ament_prefix_path.ps1'
+[2.795s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/IntelligentMobileRobots2025/work3/install/lms_data/share/lms_data/hook/ament_prefix_path.dsv'
+[2.795s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/install/lms_data/share/lms_data/hook/ament_prefix_path.sh'
+[2.796s] INFO:colcon.colcon_core.shell:Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[2.796s] DEBUG:colcon.colcon_core.shell:Skip shell extension 'dsv' for command environment
+[2.859s] INFO:colcon.colcon_ros.task.ament_python.build:Building ROS package in '/IntelligentMobileRobots2025/work3/src/lms_mapper' with build type 'ament_python'
+[2.859s] Level 1:colcon.colcon_core.shell:create_environment_hook('lms_mapper', 'ament_prefix_path')
+[2.860s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/hook/ament_prefix_path.ps1'
+[2.861s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/hook/ament_prefix_path.dsv'
+[2.861s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/hook/ament_prefix_path.sh'
+[2.861s] INFO:colcon.colcon_core.shell:Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[2.861s] DEBUG:colcon.colcon_core.shell:Skip shell extension 'dsv' for command environment
+[6.672s] INFO:colcon.colcon_core.task.python.build:Building Python package in '/IntelligentMobileRobots2025/work3/src/lms_data'
+[6.673s] INFO:colcon.colcon_core.shell:Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[6.673s] DEBUG:colcon.colcon_core.shell:Skip shell extension 'dsv' for command environment
+[9.360s] INFO:colcon.colcon_core.task.python.build:Building Python package in '/IntelligentMobileRobots2025/work3/src/lms_mapper'
+[9.361s] INFO:colcon.colcon_core.shell:Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[9.361s] DEBUG:colcon.colcon_core.shell:Skip shell extension 'dsv' for command environment
+[13.102s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/IntelligentMobileRobots2025/work3/build/lms_mapper': PYTHONPATH=/IntelligentMobileRobots2025/work3/build/lms_mapper/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /IntelligentMobileRobots2025/work3/build/lms_mapper/build --no-deps symlink_data
+[13.730s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/IntelligentMobileRobots2025/work3/build/lms_data': PYTHONPATH=/IntelligentMobileRobots2025/work3/build/lms_data/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/IntelligentMobileRobots2025/work3/install/lms_data/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /IntelligentMobileRobots2025/work3/build/lms_data/build --no-deps symlink_data
+[16.913s] Level 1:colcon.colcon_core.shell:create_environment_hook('lms_mapper', 'pythonpath_develop')
+[16.914s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/build/lms_mapper/share/lms_mapper/hook/pythonpath_develop.ps1'
+[16.915s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/IntelligentMobileRobots2025/work3/build/lms_mapper/share/lms_mapper/hook/pythonpath_develop.dsv'
+[16.915s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/build/lms_mapper/share/lms_mapper/hook/pythonpath_develop.sh'
+[16.942s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoked command in '/IntelligentMobileRobots2025/work3/build/lms_mapper' returned '0': PYTHONPATH=/IntelligentMobileRobots2025/work3/build/lms_mapper/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /IntelligentMobileRobots2025/work3/build/lms_mapper/build --no-deps symlink_data
+[16.944s] Level 1:colcon.colcon_core.environment:checking '/IntelligentMobileRobots2025/work3/install/lms_mapper' for CMake module files
+[16.945s] Level 1:colcon.colcon_core.environment:checking '/IntelligentMobileRobots2025/work3/install/lms_mapper' for CMake config files
+[16.969s] Level 1:colcon.colcon_core.environment:checking '/IntelligentMobileRobots2025/work3/install/lms_mapper/lib'
+[16.969s] Level 1:colcon.colcon_core.environment:checking '/IntelligentMobileRobots2025/work3/install/lms_mapper/bin'
+[16.970s] Level 1:colcon.colcon_core.shell:create_environment_hook('lms_mapper', 'path')
+[16.970s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/hook/path.ps1'
+[16.970s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/hook/path.dsv'
+[16.971s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/hook/path.sh'
+[16.971s] Level 1:colcon.colcon_core.environment:checking '/IntelligentMobileRobots2025/work3/install/lms_mapper/lib/pkgconfig/lms_mapper.pc'
+[16.971s] Level 1:colcon.colcon_core.environment:checking '/IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages'
+[16.971s] Level 1:colcon.colcon_core.shell:create_environment_hook('lms_mapper', 'pythonpath')
+[16.971s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/hook/pythonpath.ps1'
+[16.987s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/hook/pythonpath.dsv'
+[16.987s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/hook/pythonpath.sh'
+[16.988s] Level 1:colcon.colcon_core.environment:checking '/IntelligentMobileRobots2025/work3/install/lms_mapper/bin'
+[16.988s] Level 1:colcon.colcon_core.shell:create_environment_hook('lms_mapper', 'pythonscriptspath')
+[16.988s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/hook/pythonscriptspath.ps1'
+[16.988s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/hook/pythonscriptspath.dsv'
+[16.989s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/hook/pythonscriptspath.sh'
+[16.989s] Level 1:colcon.colcon_core.environment:create_environment_scripts_only(lms_mapper)
+[16.989s] INFO:colcon.colcon_core.shell:Creating package script '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/package.ps1'
+[17.018s] INFO:colcon.colcon_core.shell:Creating package descriptor '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/package.dsv'
+[17.019s] INFO:colcon.colcon_core.shell:Creating package script '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/package.sh'
+[17.019s] INFO:colcon.colcon_core.shell:Creating package script '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/package.bash'
+[17.024s] INFO:colcon.colcon_core.shell:Creating package script '/IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper/package.zsh'
+[17.041s] Level 1:colcon.colcon_core.environment:create_file_with_runtime_dependencies(/IntelligentMobileRobots2025/work3/install/lms_mapper/share/colcon-core/packages/lms_mapper)
+[19.184s] Level 1:colcon.colcon_core.shell:create_environment_hook('lms_data', 'pythonpath_develop')
+[19.185s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/build/lms_data/share/lms_data/hook/pythonpath_develop.ps1'
+[19.186s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/IntelligentMobileRobots2025/work3/build/lms_data/share/lms_data/hook/pythonpath_develop.dsv'
+[19.221s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoked command in '/IntelligentMobileRobots2025/work3/build/lms_data' returned '0': PYTHONPATH=/IntelligentMobileRobots2025/work3/build/lms_data/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/IntelligentMobileRobots2025/work3/install/lms_data/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /IntelligentMobileRobots2025/work3/build/lms_data/build --no-deps symlink_data
+[19.221s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/build/lms_data/share/lms_data/hook/pythonpath_develop.sh'
+[19.222s] Level 1:colcon.colcon_core.environment:checking '/IntelligentMobileRobots2025/work3/install/lms_data' for CMake module files
+[19.222s] Level 1:colcon.colcon_core.environment:checking '/IntelligentMobileRobots2025/work3/install/lms_data' for CMake config files
+[19.223s] Level 1:colcon.colcon_core.environment:checking '/IntelligentMobileRobots2025/work3/install/lms_data/lib'
+[19.223s] Level 1:colcon.colcon_core.environment:checking '/IntelligentMobileRobots2025/work3/install/lms_data/bin'
+[19.223s] Level 1:colcon.colcon_core.shell:create_environment_hook('lms_data', 'path')
+[19.223s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/install/lms_data/share/lms_data/hook/path.ps1'
+[19.223s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/IntelligentMobileRobots2025/work3/install/lms_data/share/lms_data/hook/path.dsv'
+[19.224s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/install/lms_data/share/lms_data/hook/path.sh'
+[19.224s] Level 1:colcon.colcon_core.environment:checking '/IntelligentMobileRobots2025/work3/install/lms_data/lib/pkgconfig/lms_data.pc'
+[19.266s] Level 1:colcon.colcon_core.environment:checking '/IntelligentMobileRobots2025/work3/install/lms_data/lib/python3.10/site-packages'
+[19.267s] Level 1:colcon.colcon_core.shell:create_environment_hook('lms_data', 'pythonpath')
+[19.267s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/install/lms_data/share/lms_data/hook/pythonpath.ps1'
+[19.268s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/IntelligentMobileRobots2025/work3/install/lms_data/share/lms_data/hook/pythonpath.dsv'
+[19.268s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/install/lms_data/share/lms_data/hook/pythonpath.sh'
+[19.269s] Level 1:colcon.colcon_core.environment:checking '/IntelligentMobileRobots2025/work3/install/lms_data/bin'
+[19.269s] Level 1:colcon.colcon_core.shell:create_environment_hook('lms_data', 'pythonscriptspath')
+[19.269s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/install/lms_data/share/lms_data/hook/pythonscriptspath.ps1'
+[19.290s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/IntelligentMobileRobots2025/work3/install/lms_data/share/lms_data/hook/pythonscriptspath.dsv'
+[19.291s] INFO:colcon.colcon_core.shell:Creating environment hook '/IntelligentMobileRobots2025/work3/install/lms_data/share/lms_data/hook/pythonscriptspath.sh'
+[19.291s] Level 1:colcon.colcon_core.environment:create_environment_scripts_only(lms_data)
+[19.324s] INFO:colcon.colcon_core.shell:Creating package script '/IntelligentMobileRobots2025/work3/install/lms_data/share/lms_data/package.ps1'
+[19.351s] INFO:colcon.colcon_core.shell:Creating package descriptor '/IntelligentMobileRobots2025/work3/install/lms_data/share/lms_data/package.dsv'
+[19.352s] INFO:colcon.colcon_core.shell:Creating package script '/IntelligentMobileRobots2025/work3/install/lms_data/share/lms_data/package.sh'
+[19.353s] INFO:colcon.colcon_core.shell:Creating package script '/IntelligentMobileRobots2025/work3/install/lms_data/share/lms_data/package.bash'
+[19.353s] INFO:colcon.colcon_core.shell:Creating package script '/IntelligentMobileRobots2025/work3/install/lms_data/share/lms_data/package.zsh'
+[19.353s] Level 1:colcon.colcon_core.environment:create_file_with_runtime_dependencies(/IntelligentMobileRobots2025/work3/install/lms_data/share/colcon-core/packages/lms_data)
+[19.378s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:closing loop
+[19.379s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:loop closed
+[19.379s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:run_until_complete finished with '0'
+[19.403s] DEBUG:colcon.colcon_core.event_reactor:joining thread
+[19.465s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.notify_send': Could not find 'notify-send'
+[19.465s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.terminal_notifier': Not used on non-Darwin systems
+[19.465s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.win32': Not used on non-Windows systems
+[19.465s] INFO:colcon.colcon_notification.desktop_notification:Sending desktop notification using 'notify2'
+[20.131s] DEBUG:colcon.colcon_notification.desktop_notification.notify2:Failed to initialize notify2: org.freedesktop.DBus.Error.Spawn.ExecFailed: /usr/bin/dbus-launch terminated abnormally without any error message
+[20.142s] DEBUG:colcon.colcon_core.event_reactor:joined thread
+[20.156s] INFO:colcon.colcon_core.shell:Creating prefix script '/IntelligentMobileRobots2025/work3/install/local_setup.ps1'
+[20.246s] INFO:colcon.colcon_core.shell:Creating prefix util module '/IntelligentMobileRobots2025/work3/install/_local_setup_util_ps1.py'
+[20.641s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/IntelligentMobileRobots2025/work3/install/setup.ps1'
+[20.643s] INFO:colcon.colcon_core.shell:Creating prefix script '/IntelligentMobileRobots2025/work3/install/local_setup.sh'
+[20.644s] INFO:colcon.colcon_core.shell:Creating prefix util module '/IntelligentMobileRobots2025/work3/install/_local_setup_util_sh.py'
+[20.679s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/IntelligentMobileRobots2025/work3/install/setup.sh'
+[20.698s] INFO:colcon.colcon_core.shell:Creating prefix script '/IntelligentMobileRobots2025/work3/install/local_setup.bash'
+[21.058s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/IntelligentMobileRobots2025/work3/install/setup.bash'
+[21.089s] INFO:colcon.colcon_core.shell:Creating prefix script '/IntelligentMobileRobots2025/work3/install/local_setup.zsh'
+[21.090s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/IntelligentMobileRobots2025/work3/install/setup.zsh'

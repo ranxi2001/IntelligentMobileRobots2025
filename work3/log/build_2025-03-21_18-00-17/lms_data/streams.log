@@ -1,0 +1,24 @@
+[10.917s] Invoking command in '/IntelligentMobileRobots2025/work3/build/lms_data': PYTHONPATH=/IntelligentMobileRobots2025/work3/build/lms_data/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/IntelligentMobileRobots2025/work3/install/lms_data/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /IntelligentMobileRobots2025/work3/build/lms_data/build --no-deps symlink_data
+[14.292s] running develop
+[15.789s] running egg_info
+[15.789s] creating lms_data.egg-info
+[15.789s] writing lms_data.egg-info/PKG-INFO
+[15.837s] writing dependency_links to lms_data.egg-info/dependency_links.txt
+[15.837s] writing entry points to lms_data.egg-info/entry_points.txt
+[15.837s] writing requirements to lms_data.egg-info/requires.txt
+[15.837s] writing top-level names to lms_data.egg-info/top_level.txt
+[15.853s] writing manifest file 'lms_data.egg-info/SOURCES.txt'
+[15.890s] reading manifest file 'lms_data.egg-info/SOURCES.txt'
+[15.890s] writing manifest file 'lms_data.egg-info/SOURCES.txt'
+[15.904s] running build_ext
+[15.904s] Creating /IntelligentMobileRobots2025/work3/install/lms_data/lib/python3.10/site-packages/lms-data.egg-link (link to .)
+[15.922s] Installing lms_to_rosbag script to /IntelligentMobileRobots2025/work3/install/lms_data/bin
+[15.922s] 
+[15.922s] Installed /IntelligentMobileRobots2025/work3/build/lms_data
+[15.922s] running symlink_data
+[15.922s] creating /IntelligentMobileRobots2025/work3/install/lms_data/share/ament_index
+[15.922s] creating /IntelligentMobileRobots2025/work3/install/lms_data/share/ament_index/resource_index
+[15.922s] creating /IntelligentMobileRobots2025/work3/install/lms_data/share/ament_index/resource_index/packages
+[15.922s] symbolically linking /IntelligentMobileRobots2025/work3/build/lms_data/resource/lms_data -> /IntelligentMobileRobots2025/work3/install/lms_data/share/ament_index/resource_index/packages
+[15.922s] symbolically linking /IntelligentMobileRobots2025/work3/build/lms_data/package.xml -> /IntelligentMobileRobots2025/work3/install/lms_data/share/lms_data
+[16.407s] Invoked command in '/IntelligentMobileRobots2025/work3/build/lms_data' returned '0': PYTHONPATH=/IntelligentMobileRobots2025/work3/build/lms_data/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/IntelligentMobileRobots2025/work3/install/lms_data/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /IntelligentMobileRobots2025/work3/build/lms_data/build --no-deps symlink_data

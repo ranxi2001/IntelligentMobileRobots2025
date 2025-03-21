@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import struct
 import os
 from matplotlib.colors import LinearSegmentedColormap
+import math
 
 # 设置matplotlib支持中文显示
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
@@ -254,14 +255,60 @@ class OccupancyGridMapper:
         # 添加网格线
         plt.grid(True, color='gray', linestyle='-', linewidth=0.5, alpha=0.3)
         
-        # 设置固定的显示范围
-        plt.xlim(-10, 45)
-        plt.ylim(-14, 50)
+        # 动态计算显示范围
+        # 计算数据的最小最大值，加上合适的边距
+        occupied_positions = np.where(self.grid_map == 1)
+        if len(occupied_positions[0]) > 0:
+            # 将栅格坐标转换回世界坐标
+            world_coords = [self.grid_to_world(x, y) for x, y in zip(occupied_positions[0], occupied_positions[1])]
+            occupied_x = [coord[0] for coord in world_coords]
+            occupied_y = [coord[1] for coord in world_coords]
+            
+            # 计算障碍物的边界
+            min_x = min(occupied_x) if occupied_x else -10
+            max_x = max(occupied_x) if occupied_x else 45
+            min_y = min(occupied_y) if occupied_y else -14
+            max_y = max(occupied_y) if occupied_y else 70
+            
+            # 添加边距
+            x_padding = 15  # 水平方向留出15米空间
+            y_padding = 15  # 垂直方向留出15米空间
+            
+            display_min_x = min_x - x_padding
+            display_max_x = max_x + x_padding
+            display_min_y = min_y - y_padding
+            display_max_y = max_y + y_padding
+        else:
+            # 如果没有障碍物，使用默认的显示范围
+            display_min_x = -10
+            display_max_x = 45
+            display_min_y = -14
+            display_max_y = 70
+        
+        # 如果有轨迹，也考虑轨迹的范围
+        if robot_trajectory is not None and len(robot_trajectory) > 0:
+            traj_x, traj_y = zip(*robot_trajectory)
+            display_min_x = min(display_min_x, min(traj_x) - 10)
+            display_max_x = max(display_max_x, max(traj_x) + 10)
+            display_min_y = min(display_min_y, min(traj_y) - 10)
+            display_max_y = max(display_max_y, max(traj_y) + 10)
+        
+        # 确保y轴至少显示到70，以显示所有可能的高y值障碍物
+        display_max_y = max(display_max_y, 70)
+        
+        # 设置显示范围
+        plt.xlim(display_min_x, display_max_x)
+        plt.ylim(display_min_y, display_max_y)
+        
+        # 动态计算网格线间隔
+        x_range = display_max_x - display_min_x
+        y_range = display_max_y - display_min_y
+        grid_step = min(10, max(x_range, y_range) / 5)
+        grid_step = max(2, math.floor(grid_step))  # 至少2米并取整
         
         # 设置坐标轴刻度
-        grid_step = 10  # 网格线间隔（米）
-        plt.xticks(np.arange(-10, 46, grid_step))
-        plt.yticks(np.arange(-15, 51, grid_step))
+        plt.xticks(np.arange(math.floor(display_min_x), math.ceil(display_max_x)+1, grid_step))
+        plt.yticks(np.arange(math.floor(display_min_y), math.ceil(display_max_y)+1, grid_step))
         
         # 绘制机器人轨迹
         if robot_trajectory is not None and len(robot_trajectory) > 0:
@@ -288,7 +335,7 @@ class OccupancyGridMapper:
         # 保存图像
         if save_path:
             plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='white')
-            print(f"地图已保存至 {save_path}")
+            print(f"地图已保存至 {save_path}，显示范围: x=[{display_min_x:.1f}, {display_max_x:.1f}], y=[{display_min_y:.1f}, {display_max_y:.1f}]")
         
         plt.show()
 

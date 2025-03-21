@@ -128,3 +128,5 @@ chmod +x setup.sh run.sh
 - [ROS2 Tutorials](https://docs.ros.org/en/humble/Tutorials.html)
 - [rosbag2使用指南](https://docs.ros.org/en/humble/Tutorials/Ros2bag/Recording-And-Playing-Back-Data.html)
 
+
+cd /IntelligentMobileRobots2025/work3 && chmod +x 03_map_generation.sh && ./03_map_generation.sh

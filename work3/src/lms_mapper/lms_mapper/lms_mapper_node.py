@@ -33,18 +33,22 @@ def calculate_map_bounds(min_x, max_x, min_y, max_y, padding=5.0):
     """计算地图显示边界，带有边距"""
     # 如果没有有效数据，使用默认值
     if min_x == float('inf') or max_x == float('-inf') or min_y == float('inf') or max_y == float('-inf'):
-        return (-10, 45, -14, 50)  # 默认值
+        return (-10, 45, -14, 70)  # 修改默认值，将y轴上限从50扩大到70
         
     # 添加边距
     x_range = max_x - min_x
     y_range = max_y - min_y
     
-    # 确保边距至少占范围的10%
+    # 确保边距至少占范围的10%，并且对y轴上限特别关注
     x_padding = max(padding, x_range * 0.1)
-    y_padding = max(padding, y_range * 0.1)
+    y_padding = max(padding, y_range * 0.15)  # 增加y轴的边距比例
     
     xlim = (min_x - x_padding, max_x + x_padding)
-    ylim = (min_y - y_padding, max_y + y_padding)
+    ylim = (min_y - y_padding, max_y + y_padding * 1.2)  # 对y轴上限额外增加20%的空间
+    
+    # 确保y轴至少能显示到70
+    if ylim[1] < 70:
+        ylim = (ylim[0], 70)
     
     return (xlim[0], xlim[1], ylim[0], ylim[1])
 
@@ -453,6 +457,7 @@ class LmsMapperNode(Node):
         self.declare_parameter('map_save_path', 'occupancy_grid.png')
         self.declare_parameter('map_reset_enabled', False)  # 添加新参数，默认为False
         self.declare_parameter('clear_expired_obstacles_enabled', False)  # 添加新参数，默认为False
+        self.declare_parameter('save_interval', 60.0)  # 新增参数：中间地图保存间隔，默认60秒
         
         # 获取参数
         self.resolution = self.get_parameter('map_resolution').value
@@ -463,6 +468,7 @@ class LmsMapperNode(Node):
         self.map_save_path = self.get_parameter('map_save_path').value
         self.map_reset_enabled = self.get_parameter('map_reset_enabled').value  # 读取参数
         self.clear_expired_obstacles_enabled = self.get_parameter('clear_expired_obstacles_enabled').value  # 读取参数
+        self.save_interval = self.get_parameter('save_interval').value  # 读取中间地图保存间隔
         
         # 输出地图重置功能状态
         if self.map_reset_enabled:
@@ -470,6 +476,9 @@ class LmsMapperNode(Node):
         else:
             self.get_logger().info('地图重置功能已禁用，将持续累积所有障碍物数据')
         
+        # 输出中间地图保存间隔
+        self.get_logger().info(f'中间地图保存间隔: {self.save_interval}秒')
+            
         # 输出清除过期障碍物功能状态
         if self.clear_expired_obstacles_enabled:
             self.get_logger().info('清除过期障碍物功能已启用，超过%.1f秒的障碍物将被清除' % self.max_obstacle_age)
@@ -504,7 +513,6 @@ class LmsMapperNode(Node):
         # 添加进度跟踪
         self.start_time = time.time()
         self.last_saved_time = self.start_time
-        self.save_interval = 30  # 每30秒保存一次中间结果
         self.checkpoint_counter = 0
         self.processed_scans = 0
         self.processed_points = 0
@@ -781,6 +789,19 @@ class LmsMapperNode(Node):
             # 更新占用栅格地图 - 使用高效的批量处理
             if len(world_x) > 0:
                 world_points = np.column_stack((world_x, world_y))
+                
+                # 添加测试：检查是否有y值大于26的点
+                high_y_mask = world_y > 26.0
+                high_y_count = np.sum(high_y_mask)
+                if high_y_count > 0:
+                    self.get_logger().info(f'检测到{high_y_count}个y值>26的点')
+                    # 打印一些高y值点的示例
+                    high_y_indices = np.where(high_y_mask)[0][:5]  # 最多取5个示例
+                    for i in high_y_indices:
+                        wx, wy = world_x[i], world_y[i]
+                        grid_x, grid_y = self.world_to_grid(wx, wy)
+                        self.get_logger().info(f'高y值点: 世界({wx:.2f},{wy:.2f}) -> 栅格({grid_x},{grid_y})')
+                
                 # 使用优化后的update_map方法处理批量点，添加时间戳
                 self.update_map(world_points, current_time)
                 # 添加调试信息
@@ -1137,6 +1158,27 @@ class LmsMapperNode(Node):
             # 红色表示障碍物
             obstacle_indices = np.where(self.grid_map == 1)
             if len(obstacle_indices[0]) > 0:
+                # 添加调试信息：输出栅格和世界坐标中的障碍物y值范围
+                min_grid_y = np.min(obstacle_indices[1])
+                max_grid_y = np.max(obstacle_indices[1])
+                
+                # 计算对应的世界坐标y值
+                min_world_y, max_world_y = self.grid_to_world(0, min_grid_y)[1], self.grid_to_world(0, max_grid_y)[1]
+                
+                self.get_logger().info(f'障碍物栅格坐标y范围: [{min_grid_y}, {max_grid_y}]')
+                self.get_logger().info(f'障碍物世界坐标y范围: [{min_world_y:.2f}, {max_world_y:.2f}]')
+                
+                # 检查是否有大于26的y值障碍物
+                high_y_obs = [(x, y) for x, y in zip(obstacle_indices[0], obstacle_indices[1]) if self.grid_to_world(x, y)[1] > 26]
+                if high_y_obs:
+                    self.get_logger().info(f'发现y>26的障碍物: {len(high_y_obs)}个点')
+                    # 取样几个高y值障碍物点用于调试
+                    sample_high_y = high_y_obs[:5] if len(high_y_obs) >= 5 else high_y_obs
+                    for grid_x, grid_y in sample_high_y:
+                        world_x, world_y = self.grid_to_world(grid_x, grid_y)
+                        self.get_logger().info(f'高y值障碍物: 栅格({grid_x},{grid_y}) -> 世界({world_x:.2f},{world_y:.2f})')
+                    
+                # 确保所有障碍物都被标记为红色（RGB: 255, 0, 0）
                 rgb_map[obstacle_indices[1], obstacle_indices[0]] = [255, 0, 0]  # RGB: 红色
             
             # 添加网格线
@@ -1265,7 +1307,18 @@ class LmsMapperNode(Node):
                 
                 # 设置动态计算的显示范围
                 plt.xlim(map_bounds[0], map_bounds[1])
-                plt.ylim(map_bounds[2], map_bounds[3])
+                
+                # 关键修改：确保y轴范围足够大以显示所有障碍物
+                # 检查是否有高y值障碍物，如果有，确保ylim上限足够大
+                if max_world_y > map_bounds[3]:
+                    self.get_logger().warn(f'发现高y值障碍物({max_world_y:.2f})超出了原地图范围({map_bounds[3]:.2f})，自动扩展显示范围')
+                    plt.ylim(map_bounds[2], max(map_bounds[3], max_world_y + 5))
+                else:
+                    plt.ylim(map_bounds[2], map_bounds[3])
+                
+                # 输出最终使用的显示范围
+                final_ylim = plt.gca().get_ylim()
+                self.get_logger().info(f'最终使用的y轴显示范围: [{final_ylim[0]:.2f}, {final_ylim[1]:.2f}]')
                 
                 # 根据地图边界计算适合的网格线间隔
                 x_range = map_bounds[1] - map_bounds[0]
@@ -1388,9 +1441,15 @@ class LmsMapperNode(Node):
             with self.traj_lock:
                 trajectory_changed = self.new_trajectory_since_last_map
             
-            # 显示进度信息，增加轨迹变化提示
-            self.get_logger().info(f'【进度报告】运行时间: {elapsed_time:.1f}秒, 处理扫描: {self.processed_scans}帧, 轨迹点: {len(self.robot_trajectory)}个, 障碍物格子: {np.sum(self.grid_map == 1)}个' + 
-                                (", 轨迹已更新" if trajectory_changed else ""))
+            # 添加进度日志控制 - 每5次处理才输出一次日志
+            if not hasattr(self, '_progress_log_counter'):
+                self._progress_log_counter = 0
+            self._progress_log_counter += 1
+            
+            # 只有当计数为5的倍数，或轨迹有更新时才输出进度日志
+            if self._progress_log_counter % 5 == 0 or trajectory_changed:
+                self.get_logger().info(f'【进度报告】运行时间: {elapsed_time:.1f}秒, 处理扫描: {self.processed_scans}帧, 轨迹点: {len(self.robot_trajectory)}个, 障碍物格子: {np.sum(self.grid_map == 1)}个' + 
+                                    (", 轨迹已更新" if trajectory_changed else ""))
             
             # 检查是否需要保存中间结果 - 增加条件：如果轨迹有重大变化也保存
             if current_time - self.last_saved_time >= self.save_interval or trajectory_changed:
@@ -1401,14 +1460,13 @@ class LmsMapperNode(Node):
                     self.new_trajectory_since_last_map = False
         except Exception as e:
             self.get_logger().error(f'更新进度信息时出错: {str(e)}')
-            
+    
     def save_intermediate_map(self):
         """保存中间地图结果"""
         try:
             self.checkpoint_counter += 1
             checkpoint_path = f'map_checkpoint_{self.checkpoint_counter}.png'
             
-            # 复用save_map方法的核心逻辑，但使用不同的文件名
             # 创建彩色地图图像
             rgb_map = np.zeros((self.size_y, self.size_x, 3), dtype=np.uint8)
             
@@ -1427,7 +1485,8 @@ class LmsMapperNode(Node):
             
             # 绘制机器人轨迹（绿色）- 使用当前同步的轨迹
             if current_trajectory:
-                self.get_logger().info(f'中间地图中绘制轨迹: {len(current_trajectory)}个点')
+                # 简化日志，仅打印轨迹点数
+                self.get_logger().info(f'中间地图 #{self.checkpoint_counter}: 绘制轨迹 {len(current_trajectory)}个点, 障碍物 {len(obstacle_indices[0])}个')
                 prev_x, prev_y = None, None
                 for x, y in current_trajectory:
                     try:
@@ -1495,19 +1554,7 @@ class LmsMapperNode(Node):
                     (self.size_y - self.origin_y) * self.resolution
                 ]
                 
-                # 记录日志，帮助调试坐标范围问题
-                self.get_logger().info(f'中间地图坐标范围: extent={extent}, 障碍物数量={len(obstacle_indices[0])}')
-                self.get_logger().info(f'地图统计: 地图大小={self.size_x}x{self.size_y}, 原点=({self.origin_x}, {self.origin_y}), 分辨率={self.resolution}')
-                
-                # 记录轨迹边界
-                if current_trajectory:
-                    traj_x = [p[0] for p in current_trajectory]
-                    traj_y = [p[1] for p in current_trajectory]
-                    self.get_logger().info(f'轨迹边界: x=[{min(traj_x):.2f}, {max(traj_x):.2f}], y=[{min(traj_y):.2f}, {max(traj_y):.2f}]')
-                
-                # 只保留一次imshow调用
-                plt.imshow(rgb_map, origin='lower', extent=extent)
-                
+                # 减少输出的调试信息，只保留关键信息
                 # 动态计算显示范围，根据当前数据 - 确保使用全部数据范围
                 map_bounds = calculate_map_bounds(self.min_x, self.max_x, self.min_y, self.max_y, padding=10.0)
                 
@@ -1525,9 +1572,9 @@ class LmsMapperNode(Node):
                         min(self.min_y, traj_min_y) - 15.0,  # 下方额外留出空间
                         max(self.max_y, traj_max_y) + 15.0   # 上方额外留出空间
                     )
-                    
-                    # 记录使用的边界
-                    self.get_logger().info(f'使用扩展显示边界: x=[{map_bounds[0]:.1f}, {map_bounds[1]:.1f}], y=[{map_bounds[2]:.1f}, {map_bounds[3]:.1f}]')
+                
+                # 只保留一次imshow调用
+                plt.imshow(rgb_map, origin='lower', extent=extent)
                 
                 # 设置动态计算的显示范围
                 plt.xlim(map_bounds[0], map_bounds[1])
@@ -1558,8 +1605,9 @@ class LmsMapperNode(Node):
                     plt.plot(traj_x[0], traj_y[0], 'go', markersize=8)  # 起点
                     plt.plot(traj_x[-1], traj_y[-1], 'ro', markersize=8)  # 终点
                 
-                plt.savefig(checkpoint_path, dpi=150)  # 降低dpi以加快保存速度
-                self.get_logger().info(f'已保存中间地图到: {checkpoint_path}, 显示范围: x=[{map_bounds[0]:.1f}, {map_bounds[1]:.1f}], y=[{map_bounds[2]:.1f}, {map_bounds[3]:.1f}]')
+                # 降低DPI进一步加快保存速度
+                plt.savefig(checkpoint_path, dpi=100)
+                self.get_logger().info(f'已保存中间地图 #{self.checkpoint_counter} 到: {checkpoint_path}')
             except Exception as e:
                 self.get_logger().error(f'保存中间地图时出错: {str(e)}')
             finally:
@@ -1593,13 +1641,13 @@ def main(args=None):
                     # 检查是否已接收到数据
                     if len(node.robot_trajectory) > 0:
                         # 减少日志频率，避免过多I/O操作
-                        if len(node.robot_trajectory) % 50 == 0:
+                        if len(node.robot_trajectory) % 100 == 0:  # 从50改为100
                             node.get_logger().info(f'已接收轨迹点: {len(node.robot_trajectory)}')
                         if timeout == 0:
                             node.get_logger().info('开始接收数据，继续处理...')
                     else:
                         timeout += 1
-                        if timeout % 10 == 0:  # 从5秒改为10秒提示一次
+                        if timeout % 20 == 0:  # 从10秒改为20秒提示一次
                             node.get_logger().warn(f'等待数据中... {timeout}/{max_timeout}秒')
                 except KeyboardInterrupt:
                     raise  # 重新抛出键盘中断异常
