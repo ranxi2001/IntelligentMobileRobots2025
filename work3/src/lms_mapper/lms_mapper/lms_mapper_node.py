@@ -63,8 +63,8 @@ def calculate_map_bounds(min_x, max_x, min_y, max_y, padding=5.0):
     # 确保我们至少包含理想显示区域
     min_x = min(min_x, -15.0)
     max_x = max(max_x, 45.0)
-    min_y = min(min_y, -25.0)
-    max_y = max(max_y, 45.0)
+    min_y = min(min_y, -15.0)
+    max_y = max(max_y, 50.0)
     
     # 根据实际数据进行有限的边界扩展
     return [
@@ -131,30 +131,34 @@ def laser_to_world(robot_pose, laser_ranges, laser_angles):
 
 class OccupancyGridMapper:
     """占用栅格地图生成器"""
-    def __init__(self, resolution=0.1, size_x=1000, size_y=1000):
-        """
-        初始化占用栅格地图
+    def __init__(self):
+        super().__init__('lms_mapper')
         
-        参数:
-            resolution: 栅格分辨率（米/格）
-            size_x, size_y: 地图尺寸（格数）
-        """
-        self.resolution = resolution
-        self.size_x = size_x
-        self.size_y = size_y
+        # 地图参数
+        self.resolution = 0.1  # 每格代表0.1米
+        self.size_x = 600  # X方向600格（覆盖60米）
+        self.size_y = 650  # Y方向650格（覆盖65米）
+        
+        # 调整原点位置以优化显示
+        self.origin_x = 165  # 世界坐标(-15,?)对应栅格坐标(0,?)
+        self.origin_y = 165  # 世界坐标(?,15)对应栅格坐标(?,0)
+        
         # 使用概率地图：0-100 (0=空闲, 100=占用, -1=未知)
-        self.grid_map = np.ones((size_x, size_y), dtype=np.int8) * -1
+        self.grid_map = np.ones((self.size_x, self.size_y), dtype=np.int8) * -1
+        
         # 原点设在地图中心
-        self.origin_x = size_x // 2
-        self.origin_y = size_y // 2
+        self.origin_x = self.size_x // 2
+        self.origin_y = self.size_y // 2
+        
         # 追踪地图边界
         self.min_x = float('inf')
         self.max_x = float('-inf')
         self.min_y = float('inf')
         self.max_y = float('-inf')
+        
         # 激光点数量累积计数
-        self.hit_map = np.zeros((size_x, size_y), dtype=np.int16)
-        self.miss_map = np.zeros((size_x, size_y), dtype=np.int16)
+        self.hit_map = np.zeros((self.size_x, self.size_y), dtype=np.int16)
+        self.miss_map = np.zeros((self.size_x, self.size_y), dtype=np.int16)
     
     def world_to_grid(self, x, y):
         """世界坐标系转栅格坐标系
@@ -176,9 +180,8 @@ class OccupancyGridMapper:
         grid_x = int(self.origin_x + x / self.resolution)
         grid_y = int(self.origin_y + y / self.resolution)
         
-        # 确保坐标在栅格范围内
-        grid_x = max(0, min(grid_x, self.size_x - 1))
-        grid_y = max(0, min(grid_y, self.size_y - 1))
+        # 移除强制限制，允许坐标超出地图范围
+        # 调用此函数的地方应自行检查坐标是否在有效范围内
         
         return grid_x, grid_y
     
@@ -255,9 +258,13 @@ class OccupancyGridMapper:
         for x, y in points:
             grid_x, grid_y = self.world_to_grid(x, y)
             
-            # 检查是否在地图范围内
-            if 0 <= grid_x < self.size_x and 0 <= grid_y < self.size_y:
-                self.hit_map[grid_x, grid_y] += 1
+            # 不再限制坐标范围
+            # 障碍物点将在绘制地图时被考虑，即使超出当前栅格范围
+            try:
+                if 0 <= grid_x < self.size_x and 0 <= grid_y < self.size_y:
+                    self.hit_map[grid_x, grid_y] += 1
+            except:
+                pass
         
         # 2. 从机器人到激光点之间的栅格为空闲
         for x, y in points:
@@ -268,8 +275,11 @@ class OccupancyGridMapper:
                 cells = cells[:-1]
                 
             for cx, cy in cells:
-                if 0 <= cx < self.size_x and 0 <= cy < self.size_y:
-                    self.miss_map[cx, cy] += 1
+                try:
+                    if 0 <= cx < self.size_x and 0 <= cy < self.size_y:
+                        self.miss_map[cx, cy] += 1
+                except:
+                    pass
         
         # 3. 更新概率地图
         # 使用简单的投票法：如果命中次数多于错过次数，则为占用
@@ -357,11 +367,11 @@ class OccupancyGridMapper:
             plt.plot(traj_x, traj_y, 'g-', linewidth=2, alpha=0.7)
             
             # 标记起点和终点
-            plt.plot(traj_x[0], traj_y[0], 'go', markersize=10)
-            plt.plot(traj_x[-1], traj_y[-1], 'gx', markersize=10)
+            plt.plot(traj_x[0], traj_y[0], 'go', markersize=10, label='起点')
+            plt.plot(traj_x[-1], traj_y[-1], 'ko', markersize=10, label='终点')  # 改为黑色终点标记
         
         # 添加标题和坐标轴标签
-        plt.title('占用栅格地图', fontsize=20)
+        plt.title('占用栅格图 (白色=空闲, 红色=障碍物, 绿色=起点与轨迹, 黑色=终点)', fontsize=14)
         plt.xlabel('X (m)', fontsize=14)
         plt.ylabel('Y (m)', fontsize=14)
         plt.colorbar(label='占用概率')
@@ -1086,9 +1096,8 @@ class LmsMapperNode(Node):
         grid_x = int(self.origin_x + x / self.resolution)
         grid_y = int(self.origin_y + y / self.resolution)
         
-        # 确保坐标在栅格范围内
-        grid_x = max(0, min(grid_x, self.size_x - 1))
-        grid_y = max(0, min(grid_y, self.size_y - 1))
+        # 移除强制限制，允许坐标超出地图范围
+        # 调用此函数的地方应自行检查坐标是否在有效范围内
         
         return grid_x, grid_y
     
@@ -1165,236 +1174,163 @@ class LmsMapperNode(Node):
         """保存占用栅格地图为图像文件"""
         try:
             # 创建彩色地图图像
-            rgb_map = np.zeros((self.size_y, self.size_x, 3), dtype=np.uint8)
+            # 保存所有原始障碍物点（世界坐标系）
+            all_obstacle_points = []
             
-            # 白色背景
-            rgb_map.fill(255)
+            # 收集所有观察到的障碍物点（包括可能在地图外的点）
+            with self.map_lock:
+                for i in range(len(self.obstacle_x)):
+                    all_obstacle_points.append((self.obstacle_x[i], self.obstacle_y[i]))
             
-            # 红色表示障碍物
-            obstacle_indices = np.where(self.grid_map == 1)
-            if len(obstacle_indices[0]) > 0:
-                # 添加调试信息：输出栅格和世界坐标中的障碍物y值范围
-                min_grid_y = np.min(obstacle_indices[1])
-                max_grid_y = np.max(obstacle_indices[1])
+            # 如果没有障碍物点，日志提示并使用一个空列表
+            if not all_obstacle_points:
+                self.get_logger().warn('没有检测到任何障碍物点')
+                all_obstacle_points = []
+            else:
+                self.get_logger().info(f'收集到 {len(all_obstacle_points)} 个原始障碍物点')
                 
-                # 计算对应的世界坐标y值
-                min_world_y, max_world_y = self.grid_to_world(0, min_grid_y)[1], self.grid_to_world(0, max_grid_y)[1]
-                
-                self.get_logger().info(f'障碍物栅格坐标y范围: [{min_grid_y}, {max_grid_y}]')
-                self.get_logger().info(f'障碍物世界坐标y范围: [{min_world_y:.2f}, {max_world_y:.2f}]')
-                
-                # 检查是否有大于26的y值障碍物
-                high_y_obs = [(x, y) for x, y in zip(obstacle_indices[0], obstacle_indices[1]) if self.grid_to_world(x, y)[1] > 26]
-                if high_y_obs:
-                    self.get_logger().info(f'发现y>26的障碍物: {len(high_y_obs)}个点')
-                    # 取样几个高y值障碍物点用于调试
-                    sample_high_y = high_y_obs[:5] if len(high_y_obs) >= 5 else high_y_obs
-                    for grid_x, grid_y in sample_high_y:
-                        world_x, world_y = self.grid_to_world(grid_x, grid_y)
-                        self.get_logger().info(f'高y值障碍物: 栅格({grid_x},{grid_y}) -> 世界({world_x:.2f},{world_y:.2f})')
-                    
-                # 确保所有障碍物都被标记为红色（RGB: 255, 0, 0）
-                rgb_map[obstacle_indices[1], obstacle_indices[0]] = [255, 0, 0]  # RGB: 红色
+                # 分析障碍物点分布
+                obs_x = [p[0] for p in all_obstacle_points]
+                obs_y = [p[1] for p in all_obstacle_points]
+                min_obs_x, max_obs_x = min(obs_x), max(obs_x)
+                min_obs_y, max_obs_y = min(obs_y), max(obs_y)
+                self.get_logger().info(f'障碍物世界坐标范围: X=[{min_obs_x:.2f}, {max_obs_x:.2f}], Y=[{min_obs_y:.2f}, {max_obs_y:.2f}]')
             
-            # 添加网格线
-            grid_step = max(1, int(10 / self.resolution))  # 每10米一条线
-            for i in range(0, self.size_x, grid_step):
-                rgb_map[:, i] = [0, 0, 255]  # 蓝色垂直线
-            for i in range(0, self.size_y, grid_step):
-                rgb_map[i, :] = [0, 0, 255]  # 蓝色水平线
-            
+            # 设置合适的地图显示范围，确保包含所有障碍物和轨迹
             # 安全获取轨迹副本
             current_trajectory = []
             with self.traj_lock:
                 current_trajectory = self.robot_trajectory.copy()
             
-            # 绘制机器人轨迹（绿色）
+            # 如果有轨迹点，分析轨迹范围
             if current_trajectory:
-                self.get_logger().info(f'绘制轨迹: {len(current_trajectory)}个点')
-                
-                # 计算轨迹的边界
+                self.get_logger().info(f'轨迹包含 {len(current_trajectory)} 个点')
                 traj_x = [p[0] for p in current_trajectory]
                 traj_y = [p[1] for p in current_trajectory]
-                traj_min_x = min(traj_x)
-                traj_max_x = max(traj_x)
-                traj_min_y = min(traj_y)
-                traj_max_y = max(traj_y)
-                self.get_logger().info(f'轨迹边界: x=[{traj_min_x:.2f}, {traj_max_x:.2f}], y=[{traj_min_y:.2f}, {traj_max_y:.2f}]')
-                
-                # 绘制所有轨迹点连线
-                prev_x, prev_y = None, None
-                for x, y in current_trajectory:
-                    try:
-                        grid_x, grid_y = self.world_to_grid(x, y)
-                        
-                        # 绘制轨迹点
-                        if 0 <= grid_x < self.size_x and 0 <= grid_y < self.size_y:
-                            # 绘制3x3的点，确保可见性
-                            for dx in [-1, 0, 1]:
-                                for dy in [-1, 0, 1]:
-                                    gx, gy = grid_x + dx, grid_y + dy
-                                    if 0 <= gx < self.size_x and 0 <= gy < self.size_y:
-                                        rgb_map[gy, gx] = [0, 255, 0]  # 绿色点
-                        
-                        # 绘制连接线
-                        if prev_x is not None and prev_y is not None:
-                            # 使用Bresenham算法绘制线段
-                            try:
-                                line_points = self.bresenham_line(prev_x, prev_y, grid_x, grid_y)
-                                for lx, ly in line_points:
-                                    if 0 <= lx < self.size_x and 0 <= ly < self.size_y:
-                                        rgb_map[ly, lx] = [0, 200, 0]  # 稍暗的绿色线
-                            except Exception as line_err:
-                                self.get_logger().warn(f'绘制轨迹线时出错，跳过此线段: {str(line_err)}')
-                        
-                        prev_x, prev_y = grid_x, grid_y
-                    except Exception as point_err:
-                        self.get_logger().warn(f'处理轨迹点({x}, {y})时出错: {str(point_err)}')
-                
-                # 特别标记起点和终点
-                if len(current_trajectory) >= 2:
-                    try:
-                        # 起点(绿色)
-                        start_x, start_y = self.world_to_grid(current_trajectory[0][0], current_trajectory[0][1])
-                        for dx in range(-4, 5):
-                            for dy in range(-4, 5):
-                                gx, gy = start_x + dx, start_y + dy
-                                if 0 <= gx < self.size_x and 0 <= gy < self.size_y:
-                                    # 绘制圆形起点标记
-                                    if dx*dx + dy*dy <= 16:
-                                        rgb_map[gy, gx] = [0, 255, 0]  # 起点绿色
-                        
-                        # 终点(红色)
-                        end_x, end_y = self.world_to_grid(current_trajectory[-1][0], current_trajectory[-1][1])
-                        for dx in range(-4, 5):
-                            for dy in range(-4, 5):
-                                gx, gy = end_x + dx, end_y + dy
-                                if 0 <= gx < self.size_x and 0 <= gy < self.size_y:
-                                    # 绘制X形终点标记
-                                    if abs(dx) == abs(dy):
-                                        rgb_map[gy, gx] = [255, 0, 0]  # 终点红色
-                    except Exception as mark_err:
-                        self.get_logger().warn(f'标记轨迹起终点时出错: {str(mark_err)}')
-            else:
-                self.get_logger().warn('没有轨迹点可绘制')
+                min_traj_x, max_traj_x = min(traj_x), max(traj_x)
+                min_traj_y, max_traj_y = min(traj_y), max(traj_y)
+                self.get_logger().info(f'轨迹世界坐标范围: X=[{min_traj_x:.2f}, {max_traj_x:.2f}], Y=[{min_traj_y:.2f}, {max_traj_y:.2f}]')
             
-            # 保存图像
+            # 计算数据的整体范围
+            all_points = all_obstacle_points + current_trajectory
+            if not all_points:
+                # 如果没有任何点，使用默认范围
+                map_bounds = [-15.0, 45.0, -15.0, 50.0]
+                self.get_logger().warn('没有任何障碍物或轨迹点，使用默认显示范围')
+            else:
+                # 动态计算范围，包含所有点并添加边距
+                all_x = [p[0] for p in all_points]
+                all_y = [p[1] for p in all_points]
+                margin = 5.0  # 边距5米
+                min_x, max_x = min(all_x) - margin, max(all_x) + margin
+                min_y, max_y = min(all_y) - margin, max(all_y) + margin
+                map_bounds = [min_x, max_x, min_y, max_y]
+                self.get_logger().info(f'动态计算的显示范围: X=[{min_x:.2f}, {max_x:.2f}], Y=[{min_y:.2f}, {max_y:.2f}]')
+            
+            # 创建图像
             fig = plt.figure(figsize=(12, 12))
             
+            # 创建散点图
+            plt.scatter([], [], color='white', s=1, label='空闲区域')  # 仅用于图例
+            
+            # 绘制障碍物点（红色）
+            if all_obstacle_points:
+                obs_x = [p[0] for p in all_obstacle_points]
+                obs_y = [p[1] for p in all_obstacle_points]
+                plt.scatter(obs_x, obs_y, color='red', s=10, label='障碍物')
+            
+            # 绘制轨迹（绿色线）
+            if current_trajectory:
+                traj_x = [p[0] for p in current_trajectory]
+                traj_y = [p[1] for p in current_trajectory]
+                plt.plot(traj_x, traj_y, 'g-', linewidth=2, label='轨迹')
+                
+                # 标记起点和终点
+                plt.plot(traj_x[0], traj_y[0], 'bo', markersize=10, label='起点')
+                plt.plot(traj_x[-1], traj_y[-1], 'ko', markersize=10, label='终点')
+            
+            # 设置坐标范围
+            plt.xlim(map_bounds[0], map_bounds[1])
+            plt.ylim(map_bounds[2], map_bounds[3])
+            
+            # 根据地图边界计算适合的网格线间隔
+            x_range = map_bounds[1] - map_bounds[0]
+            y_range = map_bounds[3] - map_bounds[2]
+            
+            # 设置合适的网格线间隔，10米或者范围的1/5，取较小值
+            grid_step_m = min(10, max(x_range, y_range) / 5)
+            grid_step_m = max(2, round(grid_step_m))  # 至少2米，并取整
+            
+            # 设置网格线
+            plt.grid(True, color='gray', linestyle='-', linewidth=0.5, alpha=0.3)
+            plt.xticks(np.arange(math.floor(map_bounds[0]), math.ceil(map_bounds[1])+1, grid_step_m))
+            plt.yticks(np.arange(math.floor(map_bounds[2]), math.ceil(map_bounds[3])+1, grid_step_m))
+            
+            plt.xlabel('X (m)', fontsize=12)
+            plt.ylabel('Y (m)', fontsize=12)
+            plt.title('占用栅格图 (白色=空闲, 红色=障碍物, 绿色=轨迹, 蓝色=起点, 黑色=终点)', fontsize=14)
+            plt.legend(loc='upper right', fontsize=10)
+            
+            # 保存并关闭图像
             try:
-                # 显示完整地图
-                display_map = rgb_map
+                plt.savefig(self.map_save_path, dpi=300, bbox_inches='tight')
+                self.get_logger().info(f'地图已保存到: {self.map_save_path}, 显示范围: x=[{map_bounds[0]:.1f}, {map_bounds[1]:.1f}], y=[{map_bounds[2]:.1f}, {map_bounds[3]:.1f}]')
+            except Exception as save_err:
+                self.get_logger().error(f'保存地图文件失败: {str(save_err)}')
+                # 尝试保存到备用位置
+                try:
+                    backup_path = '/tmp/emergency_map.png'
+                    plt.savefig(backup_path, dpi=200)
+                    self.get_logger().info(f'已保存应急地图到: {backup_path}')
+                except:
+                    self.get_logger().error('无法保存地图到任何位置')
+        except Exception as plt_err:
+            self.get_logger().error(f'绘制地图时出错: {str(plt_err)}')
+        finally:
+            # 确保关闭图形以释放资源
+            plt.close(fig)
+        
+        # 如果轨迹点数量适中，额外保存一个只包含轨迹的图
+        if current_trajectory:
+            try:
+                plt.figure(figsize=(12, 12))
+                traj_x = [p[0] for p in current_trajectory]
+                traj_y = [p[1] for p in current_trajectory]
+                plt.plot(traj_x, traj_y, 'g-', linewidth=2, markersize=2)
                 
-                # 计算完整地图的世界坐标范围
-                extent = [
-                    -self.origin_x * self.resolution,
-                    (self.size_x - self.origin_x) * self.resolution,
-                    -self.origin_y * self.resolution,
-                    (self.size_y - self.origin_y) * self.resolution
-                ]
+                # 标记起点和终点
+                plt.plot(traj_x[0], traj_y[0], 'go', markersize=10, label='起点')
+                plt.plot(traj_x[-1], traj_y[-1], 'ko', markersize=10, label='终点')  # 改为红色终点标记
                 
-                # 添加调试日志，记录地图边界信息
-                obstacle_indices = np.where(self.grid_map == 1)
-                self.get_logger().info(f'保存最终地图: extent={extent}, 障碍物数量={len(obstacle_indices[0])}')
-                self.get_logger().info(f'地图统计: 地图大小={self.size_x}x{self.size_y}, 原点=({self.origin_x}, {self.origin_y}), 分辨率={self.resolution}')
-                self.get_logger().info(f'障碍物边界: x=[{self.min_x:.2f}, {self.max_x:.2f}], y=[{self.min_y:.2f}, {self.max_y:.2f}]')
-                
-                # 绘制地图
-                plt.imshow(display_map, origin='lower', extent=extent)
-                
-                # 动态计算显示范围，根据轨迹和障碍物数据
-                # 使用固定的最佳显示范围代替自动计算
-                map_bounds = [-15.0, 45.0, -15.0, 50.0]
-                self.get_logger().info(f'使用优化的固定显示范围: X=[-15, 45], Y=[-15, 50]')
-                
-                # 设置动态计算的显示范围
+                # 使用动态计算的边界，不再使用固定值
+                map_bounds = [-15.0, 45.0, -15.0, 50.0]  # 使用和主地图相同的范围
+                self.get_logger().info(f'轨迹图使用固定显示范围: X=[-15, 45], Y=[-15, 50]')
                 plt.xlim(map_bounds[0], map_bounds[1])
                 plt.ylim(map_bounds[2], map_bounds[3])
                 
-                # 输出最终使用的显示范围
-                self.get_logger().info(f'使用固定显示范围: X=[{map_bounds[0]:.2f}, {map_bounds[1]:.2f}], Y=[{map_bounds[2]:.2f}, {map_bounds[3]:.2f}]')
-                
-                # 根据地图边界计算适合的网格线间隔
+                # 添加网格线，使用动态计算的间隔
                 x_range = map_bounds[1] - map_bounds[0]
                 y_range = map_bounds[3] - map_bounds[2]
-                
-                # 设置合适的网格线间隔，10米或者范围的1/5，取较小值
                 grid_step_m = min(10, max(x_range, y_range) / 5)
                 grid_step_m = max(2, round(grid_step_m))  # 至少2米，并取整
                 
-                # 设置网格线
-                plt.grid(True, color='gray', linestyle='-', linewidth=0.5, alpha=0.3)
+                plt.grid(True, color='gray', linestyle='-', linewidth=0.5, alpha=0.5)
                 plt.xticks(np.arange(math.floor(map_bounds[0]), math.ceil(map_bounds[1])+1, grid_step_m))
                 plt.yticks(np.arange(math.floor(map_bounds[2]), math.ceil(map_bounds[3])+1, grid_step_m))
                 
                 plt.xlabel('X (m)', fontsize=12)
                 plt.ylabel('Y (m)', fontsize=12)
-                plt.title('占用栅格图 (白色=空闲, 红色=障碍物与终点, 绿色=起点与轨迹)', fontsize=14)
+                plt.title('机器人轨迹', fontsize=14)
+                plt.legend(loc='upper right')
                 
-                # 保存并关闭图像
-                try:
-                    plt.savefig(self.map_save_path, dpi=300, bbox_inches='tight')
-                    self.get_logger().info(f'地图已保存到: {self.map_save_path}, 显示范围: x=[{map_bounds[0]:.1f}, {map_bounds[1]:.1f}], y=[{map_bounds[2]:.1f}, {map_bounds[3]:.1f}]')
-                except Exception as save_err:
-                    self.get_logger().error(f'保存地图文件失败: {str(save_err)}')
-                    # 尝试保存到备用位置
-                    try:
-                        backup_path = '/tmp/emergency_map.png'
-                        plt.savefig(backup_path, dpi=200)
-                        self.get_logger().info(f'已保存应急地图到: {backup_path}')
-                    except:
-                        self.get_logger().error('无法保存地图到任何位置')
-            except Exception as plt_err:
-                self.get_logger().error(f'绘制地图时出错: {str(plt_err)}')
+                traj_path = 'robot_trajectory.png'
+                plt.savefig(traj_path, dpi=300, bbox_inches='tight')
+                self.get_logger().info(f'轨迹图已保存到: {traj_path}，显示范围: x=[{map_bounds[0]:.1f}, {map_bounds[1]:.1f}], y=[{map_bounds[2]:.1f}, {map_bounds[3]:.1f}]')
+            except Exception as traj_err:
+                self.get_logger().error(f'绘制轨迹图时出错: {str(traj_err)}')
             finally:
-                # 确保关闭图形以释放资源
-                plt.close(fig)
-            
-            # 如果轨迹点数量适中，额外保存一个只包含轨迹的图
-            if current_trajectory:
-                try:
-                    plt.figure(figsize=(12, 12))
-                    traj_x = [p[0] for p in current_trajectory]
-                    traj_y = [p[1] for p in current_trajectory]
-                    plt.plot(traj_x, traj_y, 'g-', linewidth=2, markersize=2)
-                    
-                    # 标记起点和终点
-                    plt.plot(traj_x[0], traj_y[0], 'go', markersize=10, label='起点')
-                    plt.plot(traj_x[-1], traj_y[-1], 'ro', markersize=10, label='终点')  # 改为红色终点标记
-                    
-                    # 使用动态计算的边界，不再使用固定值
-                    map_bounds = [-15.0, 45.0, -15.0, 50.0]  # 使用和主地图相同的范围
-                    self.get_logger().info(f'轨迹图使用固定显示范围: X=[-15, 45], Y=[-15, 50]')
-                    plt.xlim(map_bounds[0], map_bounds[1])
-                    plt.ylim(map_bounds[2], map_bounds[3])
-                    
-                    # 添加网格线，使用动态计算的间隔
-                    x_range = map_bounds[1] - map_bounds[0]
-                    y_range = map_bounds[3] - map_bounds[2]
-                    grid_step_m = min(10, max(x_range, y_range) / 5)
-                    grid_step_m = max(2, round(grid_step_m))  # 至少2米，并取整
-                    
-                    plt.grid(True, color='gray', linestyle='-', linewidth=0.5, alpha=0.5)
-                    plt.xticks(np.arange(math.floor(map_bounds[0]), math.ceil(map_bounds[1])+1, grid_step_m))
-                    plt.yticks(np.arange(math.floor(map_bounds[2]), math.ceil(map_bounds[3])+1, grid_step_m))
-                    
-                    plt.xlabel('X (m)', fontsize=12)
-                    plt.ylabel('Y (m)', fontsize=12)
-                    plt.title('机器人轨迹', fontsize=14)
-                    plt.legend(loc='upper right')
-                    
-                    traj_path = 'robot_trajectory.png'
-                    plt.savefig(traj_path, dpi=300, bbox_inches='tight')
-                    self.get_logger().info(f'轨迹图已保存到: {traj_path}，显示范围: x=[{map_bounds[0]:.1f}, {map_bounds[1]:.1f}], y=[{map_bounds[2]:.1f}, {map_bounds[3]:.1f}]')
-                except Exception as traj_err:
-                    self.get_logger().error(f'绘制轨迹图时出错: {str(traj_err)}')
-                finally:
-                    plt.close()
-        except Exception as e:
-            self.get_logger().error(f'保存地图过程中出错: {str(e)}')
-            import traceback
-            self.get_logger().error(traceback.format_exc())
-
+                plt.close()
+    
     def bresenham_line(self, x0, y0, x1, y1):
         """使用Bresenham算法生成两点间的线段像素坐标"""
         points = []
@@ -1490,7 +1426,7 @@ class LmsMapperNode(Node):
             with self.traj_lock:
                 current_trajectory = self.robot_trajectory.copy()
             
-            # 绘制机器人轨迹（绿色）- 使用当前同步的轨迹
+            # 绘制机器人轨迹（蓝色）- 使用当前同步的轨迹
             if current_trajectory:
                 # 简化日志，仅打印轨迹点数
                 self.get_logger().info(f'中间地图 #{self.checkpoint_counter}: 绘制轨迹 {len(current_trajectory)}个点, 障碍物 {len(obstacle_indices[0])}个')
@@ -1506,18 +1442,18 @@ class LmsMapperNode(Node):
                                 for dy in [-1, 0, 1]:
                                     gx, gy = grid_x + dx, grid_y + dy
                                     if 0 <= gx < self.size_x and 0 <= gy < self.size_y:
-                                        rgb_map[gy, gx] = [0, 255, 0]  # 绿色点
-                        
-                        # 绘制连接线
-                        if prev_x is not None and prev_y is not None:
-                            # 使用Bresenham算法绘制线段
-                            try:
-                                line_points = self.bresenham_line(prev_x, prev_y, grid_x, grid_y)
-                                for lx, ly in line_points:
-                                    if 0 <= lx < self.size_x and 0 <= ly < self.size_y:
-                                        rgb_map[ly, lx] = [0, 200, 0]  # 稍暗的绿色线
-                            except:
-                                pass
+                                        rgb_map[gy, gx] = [0, 0, 255]  # 蓝色点
+                            
+                            # 绘制连接线
+                            if prev_x is not None and prev_y is not None:
+                                # 使用Bresenham算法绘制线段
+                                try:
+                                    line_points = self.bresenham_line(prev_x, prev_y, grid_x, grid_y)
+                                    for lx, ly in line_points:
+                                        if 0 <= lx < self.size_x and 0 <= ly < self.size_y:
+                                            rgb_map[ly, lx] = [0, 0, 200]  # 稍暗的蓝色线
+                                except:
+                                    pass
                         
                         prev_x, prev_y = grid_x, grid_y
                     except:
@@ -1544,7 +1480,7 @@ class LmsMapperNode(Node):
                                 if 0 <= gx < self.size_x and 0 <= gy < self.size_y:
                                     # 绘制X形终点标记
                                     if abs(dx) == abs(dy):
-                                        rgb_map[gy, gx] = [255, 0, 0]  # 终点红色
+                                        rgb_map[gy, gx] = [0, 0, 0]  # 终点黑色
                     except Exception as mark_err:
                         self.get_logger().warn(f'标记轨迹起终点时出错: {str(mark_err)}')
             else:
@@ -1611,9 +1547,9 @@ class LmsMapperNode(Node):
                 if current_trajectory and len(current_trajectory) > 1:
                     traj_x = [p[0] for p in current_trajectory]
                     traj_y = [p[1] for p in current_trajectory]
-                    plt.plot(traj_x, traj_y, color='green', linewidth=2.5, alpha=0.8)  # 轨迹改为绿色
-                    plt.plot(traj_x[0], traj_y[0], 'go', markersize=10)  # 起点改为绿色标记
-                    plt.plot(traj_x[-1], traj_y[-1], 'ro', markersize=10)  # 终点改为红色标记
+                    plt.plot(traj_x, traj_y, color='blue', linewidth=2.5, alpha=0.8)  # 蓝色轨迹线
+                    plt.plot(traj_x[0], traj_y[0], 'go', markersize=10)  # 绿色起点
+                    plt.plot(traj_x[-1], traj_y[-1], 'ko', markersize=10)  # 黑色终点
                     
                     # 添加坐标轴标签和图例
                     plt.xlabel('X坐标 (米)', fontsize=12)
