@@ -476,27 +476,27 @@ class LmsMapperNode(Node):
         
         # 地图参数
         self.resolution = 0.1  # 每格代表0.1米
-        self.size_x = 600  # X方向600格（覆盖60米）
-        self.size_y = 650  # Y方向650格（覆盖65米）
+        self.size_x = 1000  # X方向1000格（覆盖100米）
+        self.size_y = 1000  # Y方向1000格（覆盖100米）
         
         # 调整原点位置以优化显示
-        self.origin_x = 15  # 使(0,0)对应到格子(15,15)
-        self.origin_y = 15  # 使(0,0)对应到格子(15,15)
+        self.origin_x = 150  # 增大原点位置，以便显示更多负坐标区域
+        self.origin_y = 150  # 增大原点位置，以便显示更多负坐标区域
         
         # 声明参数
-        self.declare_parameter('map_threshold', 1)
+        self.declare_parameter('map_threshold', 0)  # 默认值改为0，使更多点能被识别为障碍物
         self.declare_parameter('filter_points', True)
         self.declare_parameter('filter_threshold', 1.0)
         self.declare_parameter('map_save_path', 'occupancy_grid.png')
         self.declare_parameter('map_reset_enabled', False)  # 添加新参数，默认为False
         self.declare_parameter('clear_expired_obstacles_enabled', False)  # 添加新参数，默认为False
         self.declare_parameter('save_interval', 60.0)  # 新增参数：中间地图保存间隔，默认60秒
-        self.declare_parameter('motion_filter_enabled', True)  # 新参数：启用运动过滤
-        self.declare_parameter('min_motion_distance', 0.2)  # 新参数：最小运动距离（米）
-        self.declare_parameter('static_ignore_time', 5.0)  # 新参数：忽略静止时间（秒）
-        self.declare_parameter('adaptive_threshold', True)  # 新参数：是否使用自适应阈值
-        self.declare_parameter('base_threshold', 1)  # 新参数：基础阈值
-        self.declare_parameter('distance_threshold_factor', 0.5)  # 新参数：距离阈值因子
+        self.declare_parameter('motion_filter_enabled', False)  # 禁用运动过滤，显示所有数据
+        self.declare_parameter('min_motion_distance', 0.1)  # 降低最小运动距离（米）
+        self.declare_parameter('static_ignore_time', 1.0)  # 降低忽略静止时间（秒）
+        self.declare_parameter('adaptive_threshold', False)  # 禁用自适应阈值，使用固定阈值
+        self.declare_parameter('base_threshold', 0)  # 设置基础阈值为0
+        self.declare_parameter('distance_threshold_factor', 0.1)  # 降低距离阈值因子
         
         # 获取参数
         self.threshold = self.get_parameter('map_threshold').value
@@ -716,256 +716,185 @@ class LmsMapperNode(Node):
             self.last_position = (x, y)
     
     def scan_callback(self, msg):
-        """处理激光扫描消息，更新占用栅格地图"""
+        """处理激光雷达数据"""
         try:
-            # 降低日志频率，只在特定间隔输出详细信息
-            if not hasattr(self, '_scan_count'):
-                self._scan_count = 0
-            self._scan_count += 1
-            
-            # 更新处理统计
+            # 记录处理的帧数
             self.processed_scans += 1
-            self.scan_count_since_reset += 1
             
-            # 是否需要重置地图 - 只有在启用重置功能时才执行
-            if self.map_reset_enabled and self.dynamic_map and self.scan_count_since_reset >= self.map_reset_interval:
-                self.reset_map()
-                self.scan_count_since_reset = 0
+            # 获取时间戳信息
+            current_time = time.time()
             
-            # 每50个消息才打印一次详细信息
-            log_interval = 50
-            should_log_details = self._scan_count % log_interval == 0
-            
-            # 检查激光点数是否合理
-            if len(msg.ranges) == 0 or len(msg.ranges) > 1000:  # 设定合理范围
-                self.get_logger().warn(f'激光点数异常: {len(msg.ranges)}个点，跳过处理')
-                return
-                
-            # 保存部分原始数据用于调试
-            if not hasattr(self, 'debug_scans'):
-                self.debug_scans = []
-            if len(self.debug_scans) < 10:  # 只保存前10帧方便调试
-                self.debug_scans.append({
-                    'timestamp': self.get_clock().now().nanoseconds,
-                    'ranges': list(msg.ranges),
-                    'angles': [msg.angle_min + i * msg.angle_increment for i in range(len(msg.ranges))]
-                })
-        
-            if self.latest_pose is None:
-                self.get_logger().warn('接收到激光数据，但没有位姿信息，跳过处理')
-                return
-            
-            # 获取当前扫描的时间戳和frame_id
-            current_scan_time = self.get_clock().now().nanoseconds // 1000000
-            
-            if should_log_details:
-                self.get_logger().info(f'接收到激光数据: frame_id={msg.header.frame_id}, 点数={len(msg.ranges)}')
-                # 添加激光雷达坐标输出 - 使用机器人当前位姿(来自里程计)
-                self.get_logger().info(f'【激光雷达坐标】x={self.latest_pose["x"]:.4f}, y={self.latest_pose["y"]:.4f}, theta={self.latest_pose["theta"]:.4f}')
-            
-            # 如果是第一帧，记录时间
-            if not self.first_scan_received:
-                self.first_scan_received = True
-                self.last_scan_time = current_scan_time
-                self.get_logger().info('接收到第一帧激光数据')
-                
-                # 首次接收，保存当前轨迹副本
-                with self.traj_lock:
-                    self.last_scan_trajectory = self.robot_trajectory.copy()
-            
-            # 计算与上一帧的时间差
-            time_diff = current_scan_time - self.last_scan_time
-            self.last_scan_time = current_scan_time
-            
-            # 如果时间差过小，可能是重复帧，跳过处理
-            if time_diff < 10:  # 小于10毫秒认为是重复帧
-                return
-                
-            # 如果启用了运动过滤，检查是否要处理当前帧
-            if self.motion_filter_enabled:
-                # 如果在起始静止阶段，跳过处理
-                if self.in_static_start_phase:
-                    if should_log_details:
-                        self.get_logger().info('机器人在起始静止阶段，跳过激光数据处理')
-                    return
-                    
-                # 如果在终点静止阶段，跳过处理
-                if self.in_static_end_phase:
-                    if should_log_details:
-                        self.get_logger().info('机器人在终点静止阶段，跳过激光数据处理')
-                    return
-                    
-                # 如果当前未移动且静止超过指定时间，跳过处理
-                if not self.is_moving and self.static_start_time is not None:
-                    static_duration = time.time() - self.static_start_time
-                    if static_duration > self.static_ignore_time:
-                        if should_log_details:
-                            self.get_logger().info(f'机器人静止时间({static_duration:.1f}秒)超过阈值({self.static_ignore_time}秒)，跳过激光数据处理')
-                        return
-            
-            # 获取激光扫描数据 - 使用numpy更高效地处理
-            ranges = np.array(msg.ranges, dtype=np.float32)  # 明确指定数据类型以提高性能
+            # 提取激光雷达数据信息，用于日志记录
             angle_min = msg.angle_min
+            angle_max = msg.angle_max
             angle_increment = msg.angle_increment
-            angles = np.arange(len(ranges), dtype=np.float32) * angle_increment + angle_min
+            range_min = msg.range_min
+            range_max = msg.range_max
+            ranges = msg.ranges
+            intensities = msg.intensities if hasattr(msg, 'intensities') else []
             
-            # 添加调试信息
-            if should_log_details and len(ranges) > 0:
-                self.get_logger().info(f'接收到激光数据: {len(ranges)}个点, 角度范围=[{angle_min:.2f}, {angle_min + angle_increment * (len(ranges)-1):.2f}]')
+            # 获取激光雷达参考坐标系
+            frame_id = msg.header.frame_id
             
-            # 更严格的数据过滤 - 使用numpy高效处理
-            valid_indices = ~np.isnan(ranges) & ~np.isinf(ranges) & (ranges > 0.1) & (ranges < 30.0)
-            valid_count = np.sum(valid_indices)
+            # 周期性地记录激光参数信息，帮助调试
+            if self.processed_scans % 100 == 1:
+                self.get_logger().info(f'接收到激光数据: frame_id={frame_id}, 点数={len(ranges)}')
             
-            # 检查有效点百分比
-            valid_percent = valid_count / len(ranges) * 100
-            if valid_percent < 10:  # 如果有效点太少，可能是异常帧
-                if should_log_details:
-                    self.get_logger().warn(f'有效激光点比例过低: {valid_percent:.1f}%，可能是异常帧，跳过处理')
+            # 如果没有有效位姿，跳过此次处理
+            if not self.latest_pose:
+                if self.processed_scans % 10 == 0:  # 降低日志频率
+                    self.get_logger().warn('尚未接收到有效的里程计位姿，无法处理激光数据')
                 return
-            
-            # 使用布尔索引更高效地提取有效数据
-            valid_ranges = ranges[valid_indices]
-            valid_angles = angles[valid_indices]
-            
-            # 更新处理点数统计
-            self.processed_points += len(valid_ranges)
-            
-            if len(valid_ranges) == 0:
-                if should_log_details:
-                    self.get_logger().warn('没有有效的激光点')
-                return
-            
-            if should_log_details:
-                self.get_logger().info(f'有效激光点: {len(valid_ranges)}/{len(ranges)}')
-            
-            # 转换激光点到机器人坐标系 - 使用numpy向量化操作
-            # 激光坐标系: x轴向前，y轴向左，原点在激光雷达位置
-            laser_x = valid_ranges * np.cos(valid_angles)
-            laser_y = valid_ranges * np.sin(valid_angles)
-            
-            # 坐标转换前检查
-            if np.any(np.isnan(laser_x)) or np.any(np.isnan(laser_y)):
-                if should_log_details:
-                    self.get_logger().warn('激光坐标包含NaN值，进行过滤')
-                valid_mask = ~np.isnan(laser_x) & ~np.isnan(laser_y)
-                laser_x = laser_x[valid_mask]
-                laser_y = laser_y[valid_mask]
-            
-            # 获取机器人位姿
+                
+            # 记录当前机器人位姿，用于坐标转换
             robot_x = self.latest_pose['x']
             robot_y = self.latest_pose['y']
             robot_theta = self.latest_pose['theta']
             
-            # 更加严格的数据过滤 - 只保留当前时刻的激光数据
-            current_time = time.time()
+            # 记录详细位姿信息（降低频率，避免日志过多）
+            if self.processed_scans % 100 == 1:
+                self.get_logger().info(f'【激光雷达坐标】x={robot_x:.4f}, y={robot_y:.4f}, theta={robot_theta:.4f}')
             
-            # 转换到世界坐标系 - 使用numpy向量化操作
-            # 坐标转换过程：
-            # 1. 激光点坐标(laser_x,laser_y)是相对于激光雷达位置的坐标
-            # 2. 机器人位姿(robot_x,robot_y,robot_theta)是机器人在世界坐标系中的位置和朝向
-            # 3. 将激光点从激光坐标系转换到世界坐标系需要:
-            #    a. 考虑机器人的位置偏移(robot_x,robot_y)
-            #    b. 考虑机器人的朝向旋转(robot_theta)
-            cos_theta = np.cos(robot_theta)
-            sin_theta = np.sin(robot_theta)
+            # 使用简单运动过滤
+            if self.motion_filter_enabled and self.last_position:
+                # 计算移动距离
+                move_dist = math.sqrt((robot_x - self.last_position[0])**2 + (robot_y - self.last_position[1])**2)
+                
+                # 如果移动距离小于阈值，记录静止开始时间
+                if move_dist < self.min_motion_distance:
+                    if not self.is_moving:  # 如果已经静止，继续累计时间
+                        static_duration = current_time - self.last_moved_time if self.last_moved_time else 0
+                        # 如果静止时间超过阈值且不是起始阶段，跳过此帧
+                        if static_duration > self.static_ignore_time and not self.in_static_start_phase:
+                            if self.processed_scans % 50 == 0:  # 降低日志频率
+                                self.get_logger().info(f'机器人静止中 ({static_duration:.1f}秒)，跳过处理激光数据')
+                            return
+                    else:  # 如果是刚开始静止
+                        self.is_moving = False
+                        self.last_moved_time = current_time
+                        if self.processed_scans % 10 == 0:
+                            self.get_logger().info('机器人停止移动')
+                else:
+                    # 如果移动距离大于阈值，标记为移动状态
+                    if not self.is_moving:
+                        self.is_moving = True
+                        if self.in_static_start_phase:
+                            self.in_static_start_phase = False
+                            self.get_logger().info('机器人开始移动，退出起始静止阶段')
+                    
+                    # 更新上次移动时间
+                    self.last_moved_time = current_time
+                    
+                    # 累计总移动距离
+                    self.total_distance += move_dist
+                    
+                    # 每米记录一次累计距离
+                    if int(self.total_distance) > int(self.total_distance - move_dist):
+                        self.get_logger().info(f'累计行驶距离: {self.total_distance:.2f}米')
             
-            # 记录机器人位置信息以便日志记录
-            if should_log_details:
+            # 更新位置记录
+            self.last_position = (robot_x, robot_y)
+            
+            # 如果是第一次收到扫描数据，记录起始位置
+            if not self.first_scan_received:
+                self.start_pose = self.latest_pose.copy()
+                self.get_logger().info(f'记录起始位置: x={robot_x:.2f}, y={robot_y:.2f}, theta={robot_theta:.2f}')
+                self.first_scan_received = True
+                self.last_scan_time = current_time
+            
+            # 更新帧处理间隔信息
+            if self.last_scan_time:
+                scan_interval = current_time - self.last_scan_time
+                # 如果间隔明显长于正常，记录警告
+                if scan_interval > 0.5:  # 正常应该是0.1秒左右
+                    self.get_logger().warn(f'激光扫描处理间隔较长: {scan_interval:.2f}秒')
+            self.last_scan_time = current_time
+            
+            # 检查激光数据点数
+            if len(ranges) == 0:
+                self.get_logger().warn('接收到空的激光扫描数据')
+                return
+                
+            # 生成对应的角度数组（弧度）
+            angles = [angle_min + i * angle_increment for i in range(len(ranges))]
+            
+            # 记录扫描角度范围，用于诊断
+            if self.processed_scans % 100 == 1:
+                angle_min_deg = math.degrees(angle_min)
+                angle_max_deg = math.degrees(angle_max)
+                self.get_logger().info(f'接收到激光数据: {len(ranges)}个点, 角度范围=[{angle_min:.2f}, {angle_max:.2f}]')
+            
+            # 过滤无效距离数据
+            valid_ranges = []
+            valid_angles = []
+            
+            for i, r in enumerate(ranges):
+                # 检查距离是否在有效范围内
+                if range_min <= r <= range_max:
+                    valid_ranges.append(r)
+                    valid_angles.append(angles[i])
+            
+            # 记录有效点数
+            valid_points_count = len(valid_ranges)
+            total_points_count = len(ranges)
+            
+            if self.processed_scans % 100 == 1 or valid_points_count < total_points_count * 0.5:
+                self.get_logger().info(f'有效激光点: {valid_points_count}/{total_points_count}')
+            
+            if valid_points_count == 0:
+                self.get_logger().warn('没有有效的激光点')
+                return
+            
+            # 计算激光点在世界坐标系中的坐标
+            cos_theta = math.cos(robot_theta)
+            sin_theta = math.sin(robot_theta)
+            
+            if self.processed_scans % 100 == 1:
                 self.get_logger().info(f'机器人位姿: x={robot_x:.2f}, y={robot_y:.2f}, theta={robot_theta:.2f}, cos_theta={cos_theta:.2f}, sin_theta={sin_theta:.2f}')
             
-            # 执行坐标转换: 从激光坐标系→世界坐标系
-            # 公式: world_x = robot_x + laser_x * cos(theta) - laser_y * sin(theta)
-            #       world_y = robot_y + laser_x * sin(theta) + laser_y * cos(theta)
-            # 其中(robot_x,robot_y)是机器人在世界坐标系中的位置
-            world_x = robot_x + laser_x * cos_theta - laser_y * sin_theta
-            world_y = robot_y + laser_x * sin_theta + laser_y * cos_theta
+            # 将激光雷达坐标系下的点转换到世界坐标系
+            world_points = []
+            for i, (r, theta) in enumerate(zip(valid_ranges, valid_angles)):
+                # 计算激光点在激光雷达坐标系中的位置
+                laser_x = r * math.cos(theta)
+                laser_y = r * math.sin(theta)
+                
+                # 将点从激光雷达坐标系转换到世界坐标系
+                world_x = robot_x + laser_x * cos_theta - laser_y * sin_theta
+                world_y = robot_y + laser_x * sin_theta + laser_y * cos_theta
+                
+                world_points.append((world_x, world_y))
+                
+                # 保存所有障碍物点的坐标，用于最终地图绘制
+                self.obstacle_x.append(world_x)
+                self.obstacle_y.append(world_y)
             
-            # 这样得到的world_x和world_y就是障碍物点在世界坐标系(全局坐标系)中的绝对坐标
-            # 相对于地图原点(0,0)，而不是相对于机器人的相对坐标
+            # 分析转换后的点分布
+            if self.processed_scans % 100 == 1 and world_points:
+                wx = [p[0] for p in world_points]
+                wy = [p[1] for p in world_points]
+                self.get_logger().info(f'激光点世界坐标范围: x=[{min(wx):.2f}, {max(wx):.2f}], y=[{min(wy):.2f}, {max(wy):.2f}]')
+                
+                # 添加一些坐标转换的样本点以帮助诊断
+                sample_indices = [0, len(world_points)//4, len(world_points)//2, 3*len(world_points)//4, len(world_points)-1]
+                samples = []
+                for idx in sample_indices:
+                    if 0 <= idx < len(world_points):
+                        r = valid_ranges[idx]
+                        angle = valid_angles[idx]
+                        laser_x = r * math.cos(angle)
+                        laser_y = r * math.sin(angle)
+                        world_x, world_y = world_points[idx]
+                        samples.append(f'激光坐标({laser_x:.2f},{laser_y:.2f})→世界坐标({world_x:.2f},{world_y:.2f})')
+                
+                if samples:
+                    self.get_logger().info(f'【坐标转换样本】: {" | ".join(samples)}')
             
-            # 记录坐标转换范围
-            if should_log_details:
-                self.get_logger().info(f'激光点世界坐标范围: x=[{np.min(world_x):.2f}, {np.max(world_x):.2f}], y=[{np.min(world_y):.2f}, {np.max(world_y):.2f}]')
-                
-                # 添加前几个转换后的点的详细信息
-                n_samples = min(5, len(world_x))
-                if n_samples > 0:
-                    sample_indices = np.linspace(0, len(world_x)-1, n_samples, dtype=int)
-                    sample_info = []
-                    for i in sample_indices:
-                        orig_laser_x = laser_x[i]
-                        orig_laser_y = laser_y[i]
-                        w_x = world_x[i]
-                        w_y = world_y[i]
-                        sample_info.append(f"激光坐标({orig_laser_x:.2f},{orig_laser_y:.2f})→世界坐标({w_x:.2f},{w_y:.2f})")
-                    self.get_logger().info(f'【坐标转换样本】: {" | ".join(sample_info)}')
-                
-            # 检查转换后的坐标是否有异常值
-            if np.any(np.isnan(world_x)) or np.any(np.isnan(world_y)):
-                if should_log_details:
-                    self.get_logger().warn('世界坐标包含NaN值，进行过滤')
-                valid_mask = ~np.isnan(world_x) & ~np.isnan(world_y)
-                world_x = world_x[valid_mask]
-                world_y = world_y[valid_mask]
-            
-            # 检查范围是否合理 - 使用numpy向量化操作
-            valid_mask = (np.abs(world_x) < 100.0) & (np.abs(world_y) < 100.0)
-            if not np.all(valid_mask):
-                if should_log_details:
-                    self.get_logger().warn(f'检测到{np.sum(~valid_mask)}个超出合理范围的点，将被过滤')
-                world_x = world_x[valid_mask]
-                world_y = world_y[valid_mask]
-            
-            # 更新占用栅格地图 - 使用高效的批量处理
-            if len(world_x) > 0:
-                world_points = np.column_stack((world_x, world_y))
-                
-                # 将所有有效的障碍物点保存到原始坐标列表中，用于后续处理
-                self.obstacle_x.extend(world_x)
-                self.obstacle_y.extend(world_y)
-                
-                # 添加测试：检查是否有y值大于26的点
-                high_y_mask = world_y > 26.0
-                high_y_count = np.sum(high_y_mask)
-                if high_y_count > 0:
-                    self.get_logger().info(f'检测到{high_y_count}个y值>26的点')
-                    # 打印一些高y值点的示例
-                    high_y_indices = np.where(high_y_mask)[0][:5]  # 最多取5个示例
-                    for i in high_y_indices:
-                        wx, wy = world_x[i], world_y[i]
-                        grid_x, grid_y = self.world_to_grid(wx, wy)
-                        self.get_logger().info(f'高y值点: 世界({wx:.2f},{wy:.2f}) -> 栅格({grid_x},{grid_y})')
-                
-                # 使用优化后的update_map方法处理批量点，添加时间戳
-                self.update_map(world_points, current_time)
-                # 添加调试信息
-                if should_log_details:
-                    self.get_logger().info(f'更新地图: 添加了{len(world_points)}个点')
-                    # 添加实时位姿与障碍物关系调试信息
-                    if len(world_points) > 10:
-                        self.get_logger().info(f'【实时位姿】x={robot_x:.3f}, y={robot_y:.3f}, theta={robot_theta:.3f}rad, 用于计算障碍物与机器人相对位置')
-                        # 计算最近和最远的激光点
-                        distances = np.sqrt(np.square(world_x - robot_x) + np.square(world_y - robot_y))
-                        min_dist = np.min(distances)
-                        max_dist = np.max(distances)
-                        self.get_logger().info(f'【激光点距离】最近={min_dist:.2f}m, 最远={max_dist:.2f}m')
-                        
-                        # 找出最近的几个点，用于示例相对坐标转换
-                        if len(distances) > 5:
-                            closest_indices = np.argsort(distances)[:3]  # 取3个最近点作为示例
-                            self.get_logger().info("【坐标转换示例】世界坐标→相对坐标→栅格坐标:")
-                            for idx in closest_indices:
-                                # 世界坐标(绝对坐标)
-                                wx, wy = world_x[idx], world_y[idx]
-                                # 相对于机器人的坐标
-                                rx, ry = wx - robot_x, wy - robot_y
-                                # 栅格坐标
-                                gx, gy = self.world_to_grid(wx, wy)
-                                # 输出三种坐标
-                                self.get_logger().info(f"  点{idx}: 世界坐标({wx:.2f},{wy:.2f}) → 相对坐标({rx:.2f},{ry:.2f}) → 栅格坐标({gx},{gy})")
-            elif should_log_details:
-                self.get_logger().warn('所有点均被过滤，无点添加到地图')
+            # 更新地图
+            if world_points:
+                world_points_np = np.array(world_points)
+                self.update_map(world_points_np, current_time)
+                self.processed_points += len(world_points)
             
             # 保存扫描时的轨迹副本，确保与当前扫描数据同步
             with self.traj_lock:
@@ -997,6 +926,11 @@ class LmsMapperNode(Node):
         try:
             if len(points) == 0:
                 return
+                
+            # 添加日志输出当前使用的阈值设置
+            if not hasattr(self, '_threshold_logged') or not self._threshold_logged:
+                self.get_logger().info(f'当前使用的障碍物计数阈值: {self.threshold}')
+                self._threshold_logged = True
                 
             points_added = 0
             
@@ -1053,18 +987,18 @@ class LmsMapperNode(Node):
                             # 根据距离计算局部阈值 - 远处使用更高阈值，减少噪声
                             local_threshold = self.base_threshold
                             
-                            # 根据距离增加阈值
-                            distance_factor = max(0, distance - 5.0) * self.distance_threshold_factor
+                            # 根据距离增加阈值，但限制增长幅度使远距离不会太高
+                            distance_factor = max(0, min(distance - 5.0, 10.0)) * self.distance_threshold_factor
                             local_threshold += math.floor(distance_factor)
                             
                             # 对特定区域进行特殊处理
                             # 左侧区域（x值较小的区域）使用更高的阈值 - 通常有更多噪声
                             if x < 0:  
-                                local_threshold = max(local_threshold + 1, 2)
+                                local_threshold = max(local_threshold + 1, 1)  # 降低最小值为1
                             
-                            # 远距离区域使用更高的阈值
+                            # 远距离区域使用更高的阈值，但最大不超过2
                             if distance > 20.0:
-                                local_threshold = max(local_threshold, 3)
+                                local_threshold = max(local_threshold, min(2, local_threshold + 1))
                             
                             # 获取或初始化该栅格的计数
                             grid_key = (grid_x, grid_y)
@@ -1075,7 +1009,7 @@ class LmsMapperNode(Node):
                             self.obstacle_timestamps[grid_key] = current_time
                             
                             # 使用自适应阈值标记栅格
-                            if grid_count > local_threshold:
+                            if grid_count >= local_threshold:  # 修改为>=，使更多点被识别为障碍物
                                 self.grid_map[grid_x, grid_y] = 1
                                 points_added += 1
                         else:
@@ -1088,7 +1022,7 @@ class LmsMapperNode(Node):
                             self.obstacle_timestamps[grid_key] = current_time
                             
                             # 使用固定阈值标记栅格
-                            if grid_count > self.threshold:
+                            if grid_count >= self.threshold:  # 修改为>=，使更多点被识别为障碍物
                                 self.grid_map[grid_x, grid_y] = 1
                                 points_added += 1
                 
@@ -1294,7 +1228,7 @@ class LmsMapperNode(Node):
                 # 动态计算范围，包含所有点并添加边距
                 all_x = [p[0] for p in all_points]
                 all_y = [p[1] for p in all_points]
-                margin = 5.0  # 边距5米
+                margin = 20.0  # 增大边距到20米
                 min_x, max_x = min(all_x) - margin, max(all_x) + margin
                 min_y, max_y = min(all_y) - margin, max(all_y) + margin
                 map_bounds = [min_x, max_x, min_y, max_y]
@@ -1316,7 +1250,7 @@ class LmsMapperNode(Node):
                 obstacle_sizes = []
                 
                 # 设置合适的起始距离阈值 - 小车开始行驶后记录
-                start_distance_threshold = 2.0  # 2米开始正常记录
+                start_distance_threshold = 0.0  # 设置为0，显示所有障碍物点
                 
                 for point in all_obstacle_points:
                     # 找到离此障碍物点最近的轨迹点
@@ -1347,7 +1281,7 @@ class LmsMapperNode(Node):
                             continue
                     
                     # 根据点到轨迹的距离调整点大小
-                    point_size = max(10, min(50, 30 / (min_dist + 0.5)))
+                    point_size = max(20, min(80, 50 / (min_dist + 0.5)))  # 增大点大小
                     
                     # 存储过滤后的障碍物点及其大小
                     filtered_obstacles.append(point)
@@ -1357,7 +1291,7 @@ class LmsMapperNode(Node):
                     obs_x = [p[0] for p in filtered_obstacles]
                     obs_y = [p[1] for p in filtered_obstacles]
                     # 使用更鲜明的红色，提高可见性
-                    plt.scatter(obs_x, obs_y, color='#FF0000', s=obstacle_sizes, alpha=0.8, label='障碍物')
+                    plt.scatter(obs_x, obs_y, color='#FF0000', s=obstacle_sizes, alpha=0.9, label='障碍物')
                     self.get_logger().info(f'过滤后显示 {len(filtered_obstacles)} 个障碍物点')
                 else:
                     self.get_logger().warn('过滤后没有障碍物点可显示')
@@ -1365,7 +1299,7 @@ class LmsMapperNode(Node):
                 # 如果没有轨迹信息，仍然显示所有障碍物
                 obs_x = [p[0] for p in all_obstacle_points]
                 obs_y = [p[1] for p in all_obstacle_points]
-                plt.scatter(obs_x, obs_y, color='#FF0000', s=15, label='障碍物')
+                plt.scatter(obs_x, obs_y, color='#FF0000', s=30, label='障碍物')
             
             # 绘制轨迹 - 使用渐变色显示时间进度
             if current_trajectory and len(current_trajectory) > 1:

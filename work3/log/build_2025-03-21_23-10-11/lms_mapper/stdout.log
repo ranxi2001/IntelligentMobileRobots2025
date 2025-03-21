@@ -1,0 +1,22 @@
+running develop
+running egg_info
+creating lms_mapper.egg-info
+writing lms_mapper.egg-info/PKG-INFO
+writing dependency_links to lms_mapper.egg-info/dependency_links.txt
+writing entry points to lms_mapper.egg-info/entry_points.txt
+writing requirements to lms_mapper.egg-info/requires.txt
+writing top-level names to lms_mapper.egg-info/top_level.txt
+writing manifest file 'lms_mapper.egg-info/SOURCES.txt'
+reading manifest file 'lms_mapper.egg-info/SOURCES.txt'
+writing manifest file 'lms_mapper.egg-info/SOURCES.txt'
+running build_ext
+Creating /IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages/lms-mapper.egg-link (link to .)
+Installing lms_mapper_node script to /IntelligentMobileRobots2025/work3/install/lms_mapper/bin
+
+Installed /IntelligentMobileRobots2025/work3/build/lms_mapper
+running symlink_data
+creating /IntelligentMobileRobots2025/work3/install/lms_mapper/share/ament_index
+creating /IntelligentMobileRobots2025/work3/install/lms_mapper/share/ament_index/resource_index
+creating /IntelligentMobileRobots2025/work3/install/lms_mapper/share/ament_index/resource_index/packages
+symbolically linking /IntelligentMobileRobots2025/work3/build/lms_mapper/resource/lms_mapper -> /IntelligentMobileRobots2025/work3/install/lms_mapper/share/ament_index/resource_index/packages
+symbolically linking /IntelligentMobileRobots2025/work3/build/lms_mapper/package.xml -> /IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper
