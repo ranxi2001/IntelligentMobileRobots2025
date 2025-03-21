@@ -484,19 +484,20 @@ class LmsMapperNode(Node):
         self.origin_y = 150  # 增大原点位置，以便显示更多负坐标区域
         
         # 声明参数
-        self.declare_parameter('map_threshold', 0)  # 默认值改为0，使更多点能被识别为障碍物
+        self.declare_parameter('map_threshold', 6)  # 进一步增加阈值到6，确保只有真实障碍物被标记
         self.declare_parameter('filter_points', True)
         self.declare_parameter('filter_threshold', 1.0)
         self.declare_parameter('map_save_path', 'occupancy_grid.png')
-        self.declare_parameter('map_reset_enabled', False)  # 添加新参数，默认为False
-        self.declare_parameter('clear_expired_obstacles_enabled', False)  # 添加新参数，默认为False
-        self.declare_parameter('save_interval', 60.0)  # 新增参数：中间地图保存间隔，默认60秒
-        self.declare_parameter('motion_filter_enabled', False)  # 禁用运动过滤，显示所有数据
-        self.declare_parameter('min_motion_distance', 0.1)  # 降低最小运动距离（米）
-        self.declare_parameter('static_ignore_time', 1.0)  # 降低忽略静止时间（秒）
-        self.declare_parameter('adaptive_threshold', False)  # 禁用自适应阈值，使用固定阈值
-        self.declare_parameter('base_threshold', 0)  # 设置基础阈值为0
-        self.declare_parameter('distance_threshold_factor', 0.1)  # 降低距离阈值因子
+        self.declare_parameter('map_reset_enabled', False)
+        self.declare_parameter('clear_expired_obstacles_enabled', False)  # 禁用清除过期障碍物功能
+        self.declare_parameter('max_obstacle_age', 5.0)  # 此参数不再使用
+        self.declare_parameter('save_interval', 60.0)
+        self.declare_parameter('motion_filter_enabled', True)  # 保持启用运动过滤
+        self.declare_parameter('min_motion_distance', 0.4)  # 保持较高的最小运动距离
+        self.declare_parameter('static_ignore_time', 0.5)  # 保持较短的静止忽略时间
+        self.declare_parameter('adaptive_threshold', True)  # 启用自适应阈值
+        self.declare_parameter('base_threshold', 4)  # 增加基础阈值
+        self.declare_parameter('distance_threshold_factor', 0.9)  # 增加距离阈值因子
         
         # 获取参数
         self.threshold = self.get_parameter('map_threshold').value
@@ -512,6 +513,7 @@ class LmsMapperNode(Node):
         self.adaptive_threshold = self.get_parameter('adaptive_threshold').value
         self.base_threshold = self.get_parameter('base_threshold').value
         self.distance_threshold_factor = self.get_parameter('distance_threshold_factor').value
+        self.max_obstacle_age = self.get_parameter('max_obstacle_age').value  # 从参数获取障碍物最大存活时间
         
         # 输出地图参数信息
         self.get_logger().info(f'地图参数: 尺寸={self.size_x}x{self.size_y}, 分辨率={self.resolution}米/格')
@@ -588,7 +590,7 @@ class LmsMapperNode(Node):
         self.scan_count_since_reset = 0
         self.map_enabled = True  # 地图构建开关
         self.dynamic_map = True  # 是否使用动态地图（根据机器人位置实时更新）
-        self.max_obstacle_age = 10.0  # 障碍物最大存活时间(秒)
+        # self.max_obstacle_age已从参数获取，不需要在这里硬编码
         self.obstacle_timestamps = {}  # 记录每个障碍物的时间戳
         
         # 存储障碍物点的原始世界坐标，用于后期处理
@@ -924,7 +926,8 @@ class LmsMapperNode(Node):
     def update_map(self, points, current_time=None):
         """更新占用栅格地图"""
         try:
-            if len(points) == 0:
+            # 如果地图禁用，直接返回
+            if not self.map_enabled:
                 return
                 
             # 添加日志输出当前使用的阈值设置
@@ -1034,7 +1037,8 @@ class LmsMapperNode(Node):
                     self.max_y = max(self.max_y, np.max(points[:, 1]))
             
             # 清除过期的障碍物 - 仅在启用该功能时执行
-            if self.clear_expired_obstacles_enabled:
+            # 注意：我们改为条件检查，如果功能被禁用，就跳过这一步
+            if self.clear_expired_obstacles_enabled and hasattr(self, '_clean_expired_obstacles'):
                 self._clean_expired_obstacles(current_time)
             
             # 用于监控更新频率
@@ -1665,6 +1669,41 @@ class LmsMapperNode(Node):
                 
         except Exception as e:
             self.get_logger().error(f'保存中间地图过程中出错: {str(e)}')
+
+    def _clean_expired_obstacles(self, current_time):
+        """清除过期的障碍物点
+        
+        参数:
+            current_time: 当前时间戳
+        """
+        if not self.obstacle_timestamps:
+            return
+            
+        # 查找所有过期的障碍物点
+        expired_keys = []
+        for key, timestamp in self.obstacle_timestamps.items():
+            if current_time - timestamp > self.max_obstacle_age:
+                expired_keys.append(key)
+                
+        # 如果没有过期点，就不需要处理
+        if not expired_keys:
+            return
+            
+        # 清除过期的障碍物点
+        for key in expired_keys:
+            grid_x, grid_y = key
+            if 0 <= grid_x < self.size_x and 0 <= grid_y < self.size_y:
+                # 重置栅格状态
+                self.grid_map[grid_x, grid_y] = 0
+                # 从计数中移除
+                if key in self.occupancy_count:
+                    del self.occupancy_count[key]
+                # 从时间戳记录中移除
+                del self.obstacle_timestamps[key]
+        
+        # 记录清除信息
+        if len(expired_keys) > 10:  # 只有当清除较多点时才记录
+            self.get_logger().info(f'已清除{len(expired_keys)}个过期障碍物')
 
 
 def main(args=None):
