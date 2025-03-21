@@ -22,6 +22,7 @@ import math
 import threading
 import time
 from collections import Counter
+import copy
 
 # 设置matplotlib支持中文显示
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
@@ -136,26 +137,29 @@ class OccupancyGridMapper:
             if not -100 < x < 100 or not -100 < y < 100:
                 self.get_logger().warn(f'世界坐标超出合理范围: x={x}, y={y}')
             
+            # 将世界坐标转换为栅格坐标
+            # origin_x和origin_y表示地图原点(0,0)在栅格中的位置（通常是地图中心）
+            # resolution是每个栅格代表的实际距离（单位：米）
             grid_x = int(self.origin_x + x / self.resolution)
             grid_y = int(self.origin_y + y / self.resolution)
             
-            # 记录超出范围的栅格坐标
-            if not (0 <= grid_x < self.size_x) or not (0 <= grid_y < self.size_y):
-                # 使用仅每1000次警告一次的方式，避免日志过多
-                if not hasattr(self, '_grid_warnings'):
-                    self._grid_warnings = 0
-                self._grid_warnings += 1
-                if self._grid_warnings % 1000 == 1:
-                    self.get_logger().warn(f'栅格坐标超出范围: 世界坐标=({x}, {y}), 栅格坐标=({grid_x}, {grid_y}), 地图大小={self.size_x}x{self.size_y}, 计数={self._grid_warnings}')
-        
-            # 添加边界检查
+            # 调试输出 - 每500次转换输出一次以避免日志过多
+            if not hasattr(self, '_world_to_grid_count'):
+                self._world_to_grid_count = 0
+            self._world_to_grid_count += 1
+            
+            if self._world_to_grid_count % 500 == 0:
+                self.get_logger().info(f'【坐标转换】世界坐标(x={x:.2f},y={y:.2f}) --> 栅格坐标(grid_x={grid_x},grid_y={grid_y})')
+                self.get_logger().info(f'【参数确认】原点(origin_x={self.origin_x},origin_y={self.origin_y}), 分辨率={self.resolution}米/格')
+            
+            # 确保坐标在栅格范围内
             grid_x = max(0, min(grid_x, self.size_x - 1))
             grid_y = max(0, min(grid_y, self.size_y - 1))
             
             return grid_x, grid_y
         except Exception as e:
-            self.get_logger().error(f'坐标转换错误: x={x}, y={y}, 错误={str(e)}')
-            # 返回默认中心点
+            self.get_logger().error(f'世界坐标转栅格坐标出错: {str(e)}')
+            # 返回地图中心作为默认值
             return self.origin_x, self.origin_y
     
     def grid_to_world(self, grid_x, grid_y):
@@ -559,6 +563,8 @@ class LmsMapperNode(Node):
         if should_log_details:
             self.get_logger().info(f'接收到里程计消息: frame_id={msg.header.frame_id}, child_frame_id={msg.child_frame_id}')
             self.get_logger().info(f'位置: x={position.x:.2f}, y={position.y:.2f}, z={position.z:.2f}')
+            # 添加更详细的轨迹坐标输出
+            self.get_logger().info(f'【轨迹坐标】x={position.x:.4f}, y={position.y:.4f}, z={position.z:.4f}')
         
         # 将四元数转换为欧拉角
         euler = self.quaternion_to_euler(
@@ -586,6 +592,11 @@ class LmsMapperNode(Node):
             self.get_logger().info(f'添加轨迹点 #{len(self.robot_trajectory)}: ({position.x:.2f}, {position.y:.2f})')
             # 每100个点打印一次统计信息，避免日志过多
             self.get_logger().info(f'轨迹统计: 总点数={len(self.robot_trajectory)}, 开始=({self.robot_trajectory[0][0]:.2f}, {self.robot_trajectory[0][1]:.2f}), 最新=({position.x:.2f}, {position.y:.2f})')
+            # 添加欧拉角信息(度数)
+            roll_deg = euler[0] * 180.0 / np.pi
+            pitch_deg = euler[1] * 180.0 / np.pi
+            yaw_deg = euler[2] * 180.0 / np.pi
+            self.get_logger().info(f'【姿态角度】roll={roll_deg:.2f}°, pitch={pitch_deg:.2f}°, yaw={yaw_deg:.2f}°')
     
     def scan_callback(self, msg):
         """处理激光扫描消息，更新占用栅格地图"""
@@ -632,6 +643,8 @@ class LmsMapperNode(Node):
             
             if should_log_details:
                 self.get_logger().info(f'接收到激光数据: frame_id={msg.header.frame_id}, 点数={len(msg.ranges)}')
+                # 添加激光雷达坐标输出 - 使用机器人当前位姿(来自里程计)
+                self.get_logger().info(f'【激光雷达坐标】x={self.latest_pose["x"]:.4f}, y={self.latest_pose["y"]:.4f}, theta={self.latest_pose["theta"]:.4f}')
             
             # 如果是第一帧，记录时间
             if not self.first_scan_received:
@@ -688,6 +701,7 @@ class LmsMapperNode(Node):
                 self.get_logger().info(f'有效激光点: {len(valid_ranges)}/{len(ranges)}')
             
             # 转换激光点到机器人坐标系 - 使用numpy向量化操作
+            # 激光坐标系: x轴向前，y轴向左，原点在激光雷达位置
             laser_x = valid_ranges * np.cos(valid_angles)
             laser_y = valid_ranges * np.sin(valid_angles)
             
@@ -708,6 +722,12 @@ class LmsMapperNode(Node):
             current_time = time.time()
             
             # 转换到世界坐标系 - 使用numpy向量化操作
+            # 坐标转换过程：
+            # 1. 激光点坐标(laser_x,laser_y)是相对于激光雷达位置的坐标
+            # 2. 机器人位姿(robot_x,robot_y,robot_theta)是机器人在世界坐标系中的位置和朝向
+            # 3. 将激光点从激光坐标系转换到世界坐标系需要:
+            #    a. 考虑机器人的位置偏移(robot_x,robot_y)
+            #    b. 考虑机器人的朝向旋转(robot_theta)
             cos_theta = np.cos(robot_theta)
             sin_theta = np.sin(robot_theta)
             
@@ -715,14 +735,33 @@ class LmsMapperNode(Node):
             if should_log_details:
                 self.get_logger().info(f'机器人位姿: x={robot_x:.2f}, y={robot_y:.2f}, theta={robot_theta:.2f}, cos_theta={cos_theta:.2f}, sin_theta={sin_theta:.2f}')
             
-            # 执行坐标转换
+            # 执行坐标转换: 从激光坐标系→世界坐标系
+            # 公式: world_x = robot_x + laser_x * cos(theta) - laser_y * sin(theta)
+            #       world_y = robot_y + laser_x * sin(theta) + laser_y * cos(theta)
+            # 其中(robot_x,robot_y)是机器人在世界坐标系中的位置
             world_x = robot_x + laser_x * cos_theta - laser_y * sin_theta
             world_y = robot_y + laser_x * sin_theta + laser_y * cos_theta
+            
+            # 这样得到的world_x和world_y就是障碍物点在世界坐标系(全局坐标系)中的绝对坐标
+            # 相对于地图原点(0,0)，而不是相对于机器人的相对坐标
             
             # 记录坐标转换范围
             if should_log_details:
                 self.get_logger().info(f'激光点世界坐标范围: x=[{np.min(world_x):.2f}, {np.max(world_x):.2f}], y=[{np.min(world_y):.2f}, {np.max(world_y):.2f}]')
-            
+                
+                # 添加前几个转换后的点的详细信息
+                n_samples = min(5, len(world_x))
+                if n_samples > 0:
+                    sample_indices = np.linspace(0, len(world_x)-1, n_samples, dtype=int)
+                    sample_info = []
+                    for i in sample_indices:
+                        orig_laser_x = laser_x[i]
+                        orig_laser_y = laser_y[i]
+                        w_x = world_x[i]
+                        w_y = world_y[i]
+                        sample_info.append(f"激光坐标({orig_laser_x:.2f},{orig_laser_y:.2f})→世界坐标({w_x:.2f},{w_y:.2f})")
+                    self.get_logger().info(f'【坐标转换样本】: {" | ".join(sample_info)}')
+                
             # 检查转换后的坐标是否有异常值
             if np.any(np.isnan(world_x)) or np.any(np.isnan(world_y)):
                 if should_log_details:
@@ -747,6 +786,28 @@ class LmsMapperNode(Node):
                 # 添加调试信息
                 if should_log_details:
                     self.get_logger().info(f'更新地图: 添加了{len(world_points)}个点')
+                    # 添加实时位姿与障碍物关系调试信息
+                    if len(world_points) > 10:
+                        self.get_logger().info(f'【实时位姿】x={robot_x:.3f}, y={robot_y:.3f}, theta={robot_theta:.3f}rad, 用于计算障碍物与机器人相对位置')
+                        # 计算最近和最远的激光点
+                        distances = np.sqrt(np.square(world_x - robot_x) + np.square(world_y - robot_y))
+                        min_dist = np.min(distances)
+                        max_dist = np.max(distances)
+                        self.get_logger().info(f'【激光点距离】最近={min_dist:.2f}m, 最远={max_dist:.2f}m')
+                        
+                        # 找出最近的几个点，用于示例相对坐标转换
+                        if len(distances) > 5:
+                            closest_indices = np.argsort(distances)[:3]  # 取3个最近点作为示例
+                            self.get_logger().info("【坐标转换示例】世界坐标→相对坐标→栅格坐标:")
+                            for idx in closest_indices:
+                                # 世界坐标(绝对坐标)
+                                wx, wy = world_x[idx], world_y[idx]
+                                # 相对于机器人的坐标
+                                rx, ry = wx - robot_x, wy - robot_y
+                                # 栅格坐标
+                                gx, gy = self.world_to_grid(wx, wy)
+                                # 输出三种坐标
+                                self.get_logger().info(f"  点{idx}: 世界坐标({wx:.2f},{wy:.2f}) → 相对坐标({rx:.2f},{ry:.2f}) → 栅格坐标({gx},{gy})")
             elif should_log_details:
                 self.get_logger().warn('所有点均被过滤，无点添加到地图')
             
@@ -787,29 +848,56 @@ class LmsMapperNode(Node):
             if current_time is None:
                 current_time = time.time()
             
-            # 清除过期的障碍物
-            if self.dynamic_map and self.clear_expired_obstacles_enabled:  # 只有当启用了清除功能时才执行
-                expired_keys = []
-                for key, timestamp in self.obstacle_timestamps.items():
-                    if current_time - timestamp > self.max_obstacle_age:
-                        expired_keys.append(key)
-                        # 清除过期的障碍物
-                        gx, gy = key
-                        if 0 <= gx < self.size_x and 0 <= gy < self.size_y:
-                            self.grid_map[gx, gy] = 0
-                
-                # 从字典中移除过期的键
-                for key in expired_keys:
-                    del self.obstacle_timestamps[key]
-                    if key in self.occupancy_count:
-                        del self.occupancy_count[key]
-                
-                # 定期记录清除信息
-                if len(expired_keys) > 10:
-                    self.get_logger().info(f'已清除{len(expired_keys)}个过期障碍物')
+            # 获取当前机器人位置 - 使用最新位姿
+            robot_x = self.latest_pose['x'] if self.latest_pose else 0.0
+            robot_y = self.latest_pose['y'] if self.latest_pose else 0.0
+            robot_theta = self.latest_pose['theta'] if self.latest_pose else 0.0
+            
+            # 记录机器人当前位置作为调试信息
+            if hasattr(self, '_map_stats_count') and self._map_stats_count % 50 == 0:
+                self.get_logger().info(f'【障碍物计算】机器人位置: x={robot_x:.2f}, y={robot_y:.2f}, theta={robot_theta:.2f}')
+            
+            # 计算点与机器人的距离 - 用于优先处理近距离障碍物
+            def calculate_distance_to_robot(point):
+                """计算点到机器人的距离"""
+                x, y = point
+                dx = x - robot_x
+                dy = y - robot_y
+                return np.sqrt(dx*dx + dy*dy)
             
             # 对于批量点，优化处理方式
             if isinstance(points, np.ndarray) and points.ndim == 2 and points.shape[1] == 2 and len(points) > 10:
+                # 计算所有点到机器人的距离
+                if len(points) > 100:  # 对于大量点，计算距离并记录
+                    distances = np.zeros(len(points))
+                    for i in range(len(points)):
+                        distances[i] = calculate_distance_to_robot(points[i])
+                    
+                    # 找出最近的几个点，记录到日志
+                    closest_indices = np.argsort(distances)[:5]
+                    closest_points = points[closest_indices]
+                    closest_distances = distances[closest_indices]
+                    
+                    # 记录最近的障碍物
+                    self.get_logger().info(f'【最近障碍物】距离机器人: {", ".join([f"({p[0]:.2f},{p[1]:.2f})={d:.2f}m" for p,d in zip(closest_points, closest_distances)])}')
+                    
+                    # 按照用户要求提供三种坐标表示
+                    # 1. 小车的当前绝对坐标
+                    self.get_logger().info(f'1.小车的当前绝对坐标: ({robot_x:.2f}m,{robot_y:.2f}m), 朝向={robot_theta:.2f}rad')
+                    
+                    # 2. 障碍物相对于小车的坐标
+                    rel_coords = []
+                    for p in closest_points:
+                        # 计算障碍物相对于机器人的坐标
+                        rel_x = p[0] - robot_x
+                        rel_y = p[1] - robot_y
+                        rel_coords.append((rel_x, rel_y))
+                    
+                    self.get_logger().info(f'2.障碍物相对于小车的坐标: {", ".join([f"({rx:.2f}m,{ry:.2f}m)" for rx,ry in rel_coords])}')
+                    
+                    # 3. 障碍物的绝对坐标
+                    self.get_logger().info(f'3.障碍物的绝对坐标: {", ".join([f"({p[0]:.2f}m,{p[1]:.2f}m)" for p in closest_points])}')
+                
                 # 更新地图边界
                 min_x = np.min(points[:, 0])
                 max_x = np.max(points[:, 0])
@@ -820,6 +908,9 @@ class LmsMapperNode(Node):
                 self.max_x = max(self.max_x, max_x)
                 self.min_y = min(self.min_y, min_y)
                 self.max_y = max(self.max_y, max_y)
+                
+                # 记录地图边界的更新
+                self.get_logger().info(f'【地图边界】x=[{self.min_x:.2f}, {self.max_x:.2f}], y=[{self.min_y:.2f}, {self.max_y:.2f}]')
                 
                 # 批量转换为栅格坐标
                 grid_x = np.clip(
@@ -940,8 +1031,20 @@ class LmsMapperNode(Node):
             if not -100 < x < 100 or not -100 < y < 100:
                 self.get_logger().warn(f'世界坐标超出合理范围: x={x}, y={y}')
             
+            # 将世界坐标转换为栅格坐标
+            # origin_x和origin_y表示地图原点(0,0)在栅格中的位置（通常是地图中心）
+            # resolution是每个栅格代表的实际距离（单位：米）
             grid_x = int(self.origin_x + x / self.resolution)
             grid_y = int(self.origin_y + y / self.resolution)
+            
+            # 调试输出 - 每500次转换输出一次以避免日志过多
+            if not hasattr(self, '_world_to_grid_count'):
+                self._world_to_grid_count = 0
+            self._world_to_grid_count += 1
+            
+            if self._world_to_grid_count % 500 == 0:
+                self.get_logger().info(f'【坐标转换】世界坐标(x={x:.2f},y={y:.2f}) --> 栅格坐标(grid_x={grid_x},grid_y={grid_y})')
+                self.get_logger().info(f'【参数确认】原点(origin_x={self.origin_x},origin_y={self.origin_y}), 分辨率={self.resolution}米/格')
             
             # 确保坐标在栅格范围内
             grid_x = max(0, min(grid_x, self.size_x - 1))

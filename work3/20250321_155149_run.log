@@ -1307,3 +1307,110 @@ findfont: Generic family 'sans-serif' not found because none of the following fa
 [INFO] [1742543867.681152713] [lms_mapper_node]: 位置: x=0.00, y=0.00, z=0.00
 [INFO] [1742543867.681530797] [lms_mapper_node]: 添加轨迹点 #1401: (0.00, 0.00)
 [INFO] [1742543867.681733172] [lms_mapper_node]: 轨迹统计: 总点数=1401, 开始=(0.00, 0.00), 最新=(0.00, 0.00)
+[INFO] [1742543874.054985466] [lms_mapper_node]: 地图统计: 障碍物单元格=8687, 地图边界=[-10.5, 24.8]x[-0.0, 30.0]
+[INFO] [1742543874.523148467] [lms_mapper_node]: 接收到激光数据: frame_id=laser, 点数=361
+[INFO] [1742543874.523520800] [lms_mapper_node]: 接收到激光数据: 361个点, 角度范围=[0.00, 3.14]
+[INFO] [1742543874.523803008] [lms_mapper_node]: 有效激光点: 360/361
+[INFO] [1742543874.524059717] [lms_mapper_node]: 机器人位姿: x=0.00, y=0.00, theta=0.00, cos_theta=1.00, sin_theta=0.00
+[INFO] [1742543874.524335383] [lms_mapper_node]: 激光点世界坐标范围: x=[-2.02, 0.64], y=[-0.00, 14.46]
+[INFO] [1742543874.537600258] [lms_mapper_node]: 更新地图: 添加了360个点
+[INFO] [1742543874.539304592] [lms_mapper_node]: 已接收轨迹点: 1450
+[INFO] [1742543874.554540758] [lms_mapper_node]: 已接收轨迹点: 1450
+[INFO] [1742543874.556071508] [lms_mapper_node]: 已接收轨迹点: 1450
+[INFO] [1742543874.589776217] [lms_mapper_node]: 已接收轨迹点: 1450
+[INFO] [1742543874.597532800] [lms_mapper_node]: 已接收轨迹点: 1450
+[INFO] [1742543874.821248883] [lms_mapper_node]: 已接收轨迹点: 1450
+⏳ 正在播放rosbag - 已等待 180/3600 秒...
+当前活跃话题:
+/clock
+/events/read_split
+/map
+/odom
+/parameter_events
+/rosout
+/scan
+/tf
+[INFO] [1742543881.514000887] [lms_mapper_node]: 接收到激光数据: frame_id=laser, 点数=361
+[INFO] [1742543881.514372637] [lms_mapper_node]: 接收到激光数据: 361个点, 角度范围=[0.00, 3.14]
+[INFO] [1742543881.514650303] [lms_mapper_node]: 有效激光点: 361/361
+[INFO] [1742543881.514905637] [lms_mapper_node]: 机器人位姿: x=0.00, y=0.00, theta=0.00, cos_theta=1.00, sin_theta=0.00
+[INFO] [1742543881.515150220] [lms_mapper_node]: 激光点世界坐标范围: x=[-1.38, 1.37], y=[-0.00, 9.57]
+[INFO] [1742543881.516526262] [lms_mapper_node]: 更新地图: 添加了361个点
+[INFO] [1742543881.534688720] [lms_mapper_node]: 已接收轨迹点: 1500
+[INFO] [1742543881.536261095] [lms_mapper_node]: 已接收轨迹点: 1500
+[INFO] [1742543881.543393762] [lms_mapper_node]: 已接收轨迹点: 1500
+[INFO] [1742543881.576986845] [lms_mapper_node]: 已接收轨迹点: 1500
+[INFO] [1742543881.606534887] [lms_mapper_node]: 已接收轨迹点: 1500
+[INFO] [1742543881.628715095] [lms_mapper_node]: 已接收轨迹点: 1500
+[INFO] [1742543881.657168220] [lms_mapper_node]: 已接收轨迹点: 1500
+[INFO] [1742543881.681689803] [lms_mapper_node]: 已接收轨迹点: 1500
+[INFO] [1742543881.710356928] [lms_mapper_node]: 已接收轨迹点: 1500
+[INFO] [1742543881.719747970] [lms_mapper_node]: 已接收轨迹点: 1500
+[INFO] [1742543881.732607512] [lms_mapper_node]: 接收到里程计消息: frame_id=odom, child_frame_id=base_link
+[INFO] [1742543881.732858095] [lms_mapper_node]: 位置: x=0.00, y=0.00, z=0.00
+[INFO] [1742543881.733169678] [lms_mapper_node]: 添加轨迹点 #1501: (0.00, 0.00)
+[INFO] [1742543881.733384678] [lms_mapper_node]: 轨迹统计: 总点数=1501, 开始=(0.00, 0.00), 最新=(0.00, 0.00)
+[INFO] [1742543888.589428584] [lms_mapper_node]: 接收到激光数据: frame_id=laser, 点数=361
+[INFO] [1742543888.589788417] [lms_mapper_node]: 接收到激光数据: 361个点, 角度范围=[0.00, 3.14]
+[INFO] [1742543888.590094709] [lms_mapper_node]: 有效激光点: 361/361
+[INFO] [1742543888.590383709] [lms_mapper_node]: 机器人位姿: x=0.00, y=0.00, theta=0.00, cos_theta=1.00, sin_theta=0.00
+[INFO] [1742543888.590632209] [lms_mapper_node]: 激光点世界坐标范围: x=[-3.03, 1.45], y=[-0.00, 8.89]
+[INFO] [1742543888.612028751] [lms_mapper_node]: 更新地图: 添加了361个点
+[INFO] [1742543888.636045626] [lms_mapper_node]: 已接收轨迹点: 1550
+[INFO] [1742543888.637494751] [lms_mapper_node]: 已接收轨迹点: 1550
+[INFO] [1742543888.656524417] [lms_mapper_node]: 已接收轨迹点: 1550
+[INFO] [1742543888.681699709] [lms_mapper_node]: 已接收轨迹点: 1550
+[INFO] [1742543888.717904584] [lms_mapper_node]: 已接收轨迹点: 1550
+[INFO] [1742543888.720707042] [lms_mapper_node]: 已接收轨迹点: 1550
+[INFO] [1742543888.744401251] [lms_mapper_node]: 已接收轨迹点: 1550
+[INFO] [1742543890.024387210] [lms_mapper_node]: 【进度报告】运行时间: 266.3秒, 处理扫描: 1560帧, 轨迹点: 1560个, 障碍物格子: 9082个, 轨迹已更新
+[INFO] [1742543890.039845126] [lms_mapper_node]: 中间地图中绘制轨迹: 1560个点
+[WARN] [1742543890.072580418] [lms_mapper_node]: 标记轨迹起终点时出错: 'LmsMapperNode' object has no attribute 'world_to_grid'
+[INFO] [1742543890.497716168] [lms_mapper_node]: 中间地图坐标范围: extent=[-25.0, 25.0, -25.0, 25.0], 障碍物数量=9082
+[INFO] [1742543890.498909752] [lms_mapper_node]: 地图统计: 地图大小=500x500, 原点=(250, 250), 分辨率=0.1
+[INFO] [1742543890.514675293] [lms_mapper_node]: 轨迹边界: x=[0.00, 0.00], y=[0.00, 0.00]
+[INFO] [1742543890.732395418] [lms_mapper_node]: 使用扩展显示边界: x=[-32.0, 46.3], y=[-21.0, 51.0]
+[INFO] [1742543892.282367752] [lms_mapper_node]: 已保存中间地图到: map_checkpoint_5.png, 显示范围: x=[-32.0, 46.3], y=[-21.0, 51.0]
+[INFO] [1742543894.098338212] [lms_mapper_node]: 地图统计: 障碍物单元格=9187, 地图边界=[-10.5, 24.8]x[-0.0, 30.0]
+⏳ 正在播放rosbag - 已等待 195/3600 秒...
+当前活跃话题:
+[INFO] [1742543896.729605421] [lms_mapper_node]: 已接收轨迹点: 1600
+[INFO] [1742543896.731429588] [lms_mapper_node]: 已接收轨迹点: 1600
+[INFO] [1742543896.738873338] [lms_mapper_node]: 接收到激光数据: frame_id=laser, 点数=361
+[INFO] [1742543896.739344296] [lms_mapper_node]: 接收到激光数据: 361个点, 角度范围=[0.00, 3.14]
+[INFO] [1742543896.739765588] [lms_mapper_node]: 有效激光点: 359/361
+[INFO] [1742543896.740093088] [lms_mapper_node]: 机器人位姿: x=0.00, y=0.00, theta=0.00, cos_theta=1.00, sin_theta=0.00
+[INFO] [1742543896.740369130] [lms_mapper_node]: 激光点世界坐标范围: x=[-1.57, 8.22], y=[-0.00, 13.27]
+[INFO] [1742543896.767253963] [lms_mapper_node]: 更新地图: 添加了359个点
+[INFO] [1742543896.768403088] [lms_mapper_node]: 已接收轨迹点: 1600
+[INFO] [1742543896.791537005] [lms_mapper_node]: 已接收轨迹点: 1600
+[INFO] [1742543896.817364380] [lms_mapper_node]: 已接收轨迹点: 1600
+[INFO] [1742543896.840766130] [lms_mapper_node]: 已接收轨迹点: 1600
+[INFO] [1742543896.851583421] [lms_mapper_node]: 已接收轨迹点: 1600
+[INFO] [1742543896.887510880] [lms_mapper_node]: 已接收轨迹点: 1600
+[INFO] [1742543896.922454463] [lms_mapper_node]: 已接收轨迹点: 1600
+[INFO] [1742543896.935450213] [lms_mapper_node]: 已接收轨迹点: 1600
+[INFO] [1742543896.945675755] [lms_mapper_node]: 接收到里程计消息: frame_id=odom, child_frame_id=base_link
+[INFO] [1742543896.947378296] [lms_mapper_node]: 位置: x=0.00, y=0.00, z=0.00
+[INFO] [1742543896.958010838] [lms_mapper_node]: 添加轨迹点 #1601: (0.00, 0.00)
+[INFO] [1742543896.958276171] [lms_mapper_node]: 轨迹统计: 总点数=1601, 开始=(0.00, 0.00), 最新=(0.00, 0.00)
+/clock
+/events/read_split
+/map
+/odom
+/parameter_events
+/rosout
+/scan
+/tf
+[INFO] [1742543903.802955050] [lms_mapper_node]: 接收到激光数据: frame_id=laser, 点数=361
+[INFO] [1742543903.803344550] [lms_mapper_node]: 接收到激光数据: 361个点, 角度范围=[0.00, 3.14]
+[INFO] [1742543903.803625841] [lms_mapper_node]: 有效激光点: 361/361
+[INFO] [1742543903.803972841] [lms_mapper_node]: 机器人位姿: x=0.00, y=0.00, theta=0.00, cos_theta=1.00, sin_theta=0.00
+[INFO] [1742543903.804706633] [lms_mapper_node]: 激光点世界坐标范围: x=[-1.04, 1.81], y=[-0.00, 10.29]
+[INFO] [1742543903.805975925] [lms_mapper_node]: 更新地图: 添加了361个点
+[INFO] [1742543903.868828341] [lms_mapper_node]: 已接收轨迹点: 1650
+[INFO] [1742543903.904311716] [lms_mapper_node]: 已接收轨迹点: 1650
+[INFO] [1742543903.933165758] [lms_mapper_node]: 已接收轨迹点: 1650
+[INFO] [1742543903.934676133] [lms_mapper_node]: 已接收轨迹点: 1650
+[INFO] [1742543904.005682300] [lms_mapper_node]: 已接收轨迹点: 1650
+[INFO] [1742543909.282520802] [lms_mapper_node]: 地图统计: 障碍物单元格=9689, 地图边界=[-10.5, 24.8]x[-0.0, 30.0]
