@@ -447,6 +447,8 @@ class LmsMapperNode(Node):
         self.declare_parameter('filter_points', True)
         self.declare_parameter('filter_threshold', 1.0)
         self.declare_parameter('map_save_path', 'occupancy_grid.png')
+        self.declare_parameter('map_reset_enabled', False)  # 添加新参数，默认为False
+        self.declare_parameter('clear_expired_obstacles_enabled', False)  # 添加新参数，默认为False
         
         # 获取参数
         self.resolution = self.get_parameter('map_resolution').value
@@ -455,6 +457,20 @@ class LmsMapperNode(Node):
         self.filter_points = self.get_parameter('filter_points').value
         self.filter_threshold = self.get_parameter('filter_threshold').value
         self.map_save_path = self.get_parameter('map_save_path').value
+        self.map_reset_enabled = self.get_parameter('map_reset_enabled').value  # 读取参数
+        self.clear_expired_obstacles_enabled = self.get_parameter('clear_expired_obstacles_enabled').value  # 读取参数
+        
+        # 输出地图重置功能状态
+        if self.map_reset_enabled:
+            self.get_logger().info('地图重置功能已启用，每处理%d个扫描后将重置地图' % self.map_reset_interval)
+        else:
+            self.get_logger().info('地图重置功能已禁用，将持续累积所有障碍物数据')
+        
+        # 输出清除过期障碍物功能状态
+        if self.clear_expired_obstacles_enabled:
+            self.get_logger().info('清除过期障碍物功能已启用，超过%.1f秒的障碍物将被清除' % self.max_obstacle_age)
+        else:
+            self.get_logger().info('清除过期障碍物功能已禁用，将保留所有检测到的障碍物')
         
         # 创建占用栅格地图
         self.size_x = self.map_size
@@ -583,8 +599,8 @@ class LmsMapperNode(Node):
             self.processed_scans += 1
             self.scan_count_since_reset += 1
             
-            # 是否需要重置地图
-            if self.dynamic_map and self.scan_count_since_reset >= self.map_reset_interval:
+            # 是否需要重置地图 - 只有在启用重置功能时才执行
+            if self.map_reset_enabled and self.dynamic_map and self.scan_count_since_reset >= self.map_reset_interval:
                 self.reset_map()
                 self.scan_count_since_reset = 0
             
@@ -772,7 +788,7 @@ class LmsMapperNode(Node):
                 current_time = time.time()
             
             # 清除过期的障碍物
-            if self.dynamic_map:
+            if self.dynamic_map and self.clear_expired_obstacles_enabled:  # 只有当启用了清除功能时才执行
                 expired_keys = []
                 for key, timestamp in self.obstacle_timestamps.items():
                     if current_time - timestamp > self.max_obstacle_age:
@@ -889,21 +905,53 @@ class LmsMapperNode(Node):
                 self.get_logger().error('回退处理也失败')
     
     def quaternion_to_euler(self, x, y, z, w):
-        """四元数转欧拉角"""
-        # 计算欧拉角
-        t0 = 2.0 * (w * x + y * z)
-        t1 = 1.0 - 2.0 * (x * x + y * y)
-        roll = np.arctan2(t0, t1)
+        """四元数转欧拉角（滚转、俯仰、偏航）"""
+        # 计算方向余弦矩阵元素
+        sinr_cosp = 2.0 * (w * x + y * z)
+        cosr_cosp = 1.0 - 2.0 * (x * x + y * y)
+        roll = np.arctan2(sinr_cosp, cosr_cosp)
         
-        t2 = 2.0 * (w * y - z * x)
-        t2 = np.clip(t2, -1.0, 1.0)
-        pitch = np.arcsin(t2)
+        # 俯仰角（pitch）
+        sinp = 2.0 * (w * y - z * x)
+        if abs(sinp) >= 1:
+            pitch = np.copysign(np.pi / 2, sinp)  # 使用copysign从sinp获取符号
+        else:
+            pitch = np.arcsin(sinp)
         
-        t3 = 2.0 * (w * z + x * y)
-        t4 = 1.0 - 2.0 * (y * y + z * z)
-        yaw = np.arctan2(t3, t4)
+        # 偏航角（yaw）
+        siny_cosp = 2.0 * (w * z + x * y)
+        cosy_cosp = 1.0 - 2.0 * (y * y + z * z)
+        yaw = np.arctan2(siny_cosp, cosy_cosp)
         
         return (roll, pitch, yaw)
+    
+    def world_to_grid(self, x, y):
+        """世界坐标系转栅格坐标系
+        
+        参数:
+            x: 世界坐标系下的X坐标
+            y: 世界坐标系下的Y坐标
+            
+        返回:
+            (grid_x, grid_y): 栅格坐标系下的整数坐标
+        """
+        try:
+            # 检查输入坐标是否在合理范围内
+            if not -100 < x < 100 or not -100 < y < 100:
+                self.get_logger().warn(f'世界坐标超出合理范围: x={x}, y={y}')
+            
+            grid_x = int(self.origin_x + x / self.resolution)
+            grid_y = int(self.origin_y + y / self.resolution)
+            
+            # 确保坐标在栅格范围内
+            grid_x = max(0, min(grid_x, self.size_x - 1))
+            grid_y = max(0, min(grid_y, self.size_y - 1))
+            
+            return grid_x, grid_y
+        except Exception as e:
+            self.get_logger().error(f'世界坐标转栅格坐标出错: {str(e)}')
+            # 返回地图中心作为默认值
+            return self.origin_x, self.origin_y
     
     def publish_map(self):
         """发布占用栅格地图"""
