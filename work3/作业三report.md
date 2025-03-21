@@ -1,84 +1,106 @@
-# 作业3：ROS2实现
+# 作业3：ROS2实现激光雷达地图生成
 
-## 学习目标
-- 掌握ROS2最新版本的基本概念和使用方法
-- 学习ROS2节点通信、话题订阅与发布
-- 了解rosbag数据记录和回放机制
+## 1. 项目介绍与目标
 
-## 任务说明
+本项目基于ROS2框架实现了激光雷达数据处理和栅格地图生成系统。通过接收激光雷达数据和里程计数据，系统能够实时构建环境的占用栅格地图，并将结果保存为图像文件。
 
-本作业基于作业2进行ROS2框架的重新实现，主要包括以下内容：
+**主要目标：**
+- 将原始LMS激光雷达数据和NAV轨迹数据转换为ROS2 bag格式
+- 开发ROS2节点，处理激光数据并生成高质量的占用栅格地图
+- 实现参数化设计，便于调整和优化地图生成效果
 
-1. 将原始的LMS激光雷达数据和NAV轨迹数据转换为ROS2 bag格式
-2. 开发ROS2节点，接收rosbag数据并实现占用栅格地图生成功能
+## 2. 系统设计与架构
 
-## 目录结构
+系统由两个主要模块组成：
 
-```
-work3/
-├── setup.sh                   # 工作空间设置脚本
-├── run.sh                     # 运行脚本
-├── src/                       # 源代码目录
-│   ├── lms_data/              # 数据转换包
-│   │   ├── lms_data/
-│   │   │   └── lms_to_rosbag.py  # 数据转换节点
-│   │   ├── package.xml
-│   │   └── setup.py
-│   └── lms_mapper/            # 地图生成包
-│       ├── lms_mapper/
-│       │   └── lms_mapper_node.py  # 地图生成节点
-│       ├── package.xml
-│       └── setup.py
-└── README.md                  # 项目说明文件
-```
+### 2.1 数据转换模块 (lms_data)
+- 负责将原始数据转换为ROS2标准消息格式
+- 激光数据 → `sensor_msgs/LaserScan`
+- 轨迹数据 → `nav_msgs/Odometry` 和 `tf2_msgs/TFMessage`
+- 生成标准ROS2 bag文件
 
-## 功能模块说明
-
-### 1. 数据转换模块 (lms_data)
-
-将原始的LMS激光雷达数据和NAV轨迹数据转换为ROS2标准消息格式，并保存为rosbag文件：
-
-- 激光数据转换为 `sensor_msgs/LaserScan` 消息
-- 轨迹数据转换为 `nav_msgs/Odometry` 消息和 `tf2_msgs/TFMessage` 消息
-- 创建了 `/scan`、`/odom` 和 `/tf` 三个标准ROS2话题
-
-### 2. 栅格地图生成模块 (lms_mapper)
-
-接收rosbag数据，进行激光数据处理和占用栅格地图生成：
-
+### 2.2 地图生成模块 (lms_mapper)
 - 订阅 `/scan` 和 `/odom` 话题
-- 将激光数据从激光坐标系转换到全局坐标系
-- 使用逆传感器模型更新占用栅格地图
-- 定期发布 `/map` 话题 (nav_msgs/OccupancyGrid)
-- 将栅格地图保存为图像文件
+- 将激光数据转换到世界坐标系
+- 使用逆传感器模型更新栅格地图
+- 发布 `/map` 话题并保存结果
 
-## 运行方法
+## 3. 实现过程与关键技术
 
-在工作目录中执行以下命令：
+### 3.1 坐标转换
+实现了从激光雷达坐标系到世界坐标系的转换，关键代码如下：
+```python
+# 计算激光点在世界坐标系中的坐标
+cos_theta = math.cos(robot_theta)
+sin_theta = math.sin(robot_theta)
 
-```bash
-# 1. 确保脚本可执行
-chmod +x setup.sh run.sh
-
-# 2. 执行运行脚本
-./run.sh
+world_x = robot_x + laser_x * cos_theta - laser_y * sin_theta
+world_y = robot_y + laser_x * sin_theta + laser_y * cos_theta
 ```
 
-脚本将自动执行以下步骤：
-1. 创建ROS2工作空间结构
-2. 构建ROS2包
-3. 将原始数据转换为rosbag格式
-4. 启动地图生成节点
-5. 播放rosbag数据
-6. 生成并保存占用栅格地图
+### 3.2 栅格地图更新
+采用批量处理方式提高效率，并使用自适应阈值处理不同区域：
+```python
+# 根据距离计算局部阈值
+if distance > 5.0:  # 5米以外的点
+    # 距离因子影响较小，使远处障碍物更容易被检测到
+    local_threshold += distance * self.distance_threshold_factor * 0.5
+else:
+    # 近处障碍物使用更低的阈值
+    local_threshold = max(1, self.base_threshold - 1)
+```
 
-## 输出结果
+### 3.3 运动过滤
+实现了运动过滤功能，只在机器人移动时记录障碍物，避免静止时的噪声：
+```python
+# 立即跳过起始静止阶段和长时间静止的数据
+if (self.in_static_start_phase and self.processed_scans > 10) or static_duration > self.static_ignore_time:
+    if self.processed_scans % 50 == 0:  # 降低日志频率
+        self.get_logger().info(f'机器人静止中 ({static_duration:.1f}秒)，跳过处理激光数据')
+    return
+```
 
-成功执行后，将生成以下文件：
-- `lms_data.bag`: 转换后的ROS2 bag数据文件
-- `occupancy_grid.png`: 生成的占用栅格地图图像
+## 4. 参数调优过程
 
-## ROS2相关技术应用
+为了获得高质量的地图，我们进行了多轮参数调优：
+
+### 4.1 初始参数设置
+- `map_threshold`: 6
+- `min_motion_distance`: 0.4
+- `static_ignore_time`: 0.5
+- `base_threshold`: 4
+- `distance_threshold_factor`: 0.9
+
+### 4.2 调试问题
+- 发现初始位置累积了过多的障碍点
+- 转弯处障碍物不够清晰
+- 遇到障碍物清除功能的错误
+
+### 4.3 最终优化参数
+- `map_threshold`: 3（降低阈值，使转弯处障碍物更清晰）
+- `min_motion_distance`: 0.5（增加最小运动距离，减少静止时记录的点）
+- `static_ignore_time`: 0.2（更快识别为静止状态）
+- `base_threshold`: 2（降低基础阈值，使转弯处显示更多障碍点）
+- `distance_threshold_factor`: 0.5（降低距离因子，远处障碍物也能更好地被检测）
+
+## 5. 结果分析
+
+最终地图效果显著改善：
+- 转弯处轮廓更加清晰可见
+- 起始位置的重复障碍点大幅减少
+- 整体地图质量更高，更准确地表示了环境
+
+## 6. 结论与改进方向
+
+成功实现了基于ROS2的激光雷达地图生成系统，通过多轮参数调优获得了高质量的栅格地图。
+
+**未来改进方向：**
+- 实现动态参数调整，便于实时优化
+- 添加地图滤波算法，进一步提高质量
+- 优化计算效率，减少内存占用
+- 添加更多可视化工具，辅助调试
+
+## 7. ROS2相关技术应用
 
 本作业应用了以下ROS2技术：
 
@@ -89,7 +111,7 @@ chmod +x setup.sh run.sh
 5. **rosbag2**: 使用rosbag2进行数据记录和回放
 6. **坐标变换**: 使用tf2实现坐标系转换
 
-## 与ROS1版本的对比
+## 8. 与ROS1版本的对比
 
 与ROS1相比，ROS2具有以下优势：
 

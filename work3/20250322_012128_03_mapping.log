@@ -1,0 +1,80 @@
+======== 阶段03-地图生成 日志开始 Sat Mar 22 01:21:28 CST 2025 ========
+正在设置ROS2环境...
+设置工作空间环境...
+提示: 没有找到lms_mapper_node可执行文件，将直接使用Python脚本
+正在启动LMS Mapper节点...
+执行: python3 /IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py --ros-args -p map_save_path:=occupancy_grid.png
+设置ROS2使用模拟时钟...
+usage: ros2 param set [-h] [--spin-time SPIN_TIME] [-s] [--no-daemon]
+                      [--include-hidden-nodes]
+                      node_name parameter_name value
+ros2 param set: error: the following arguments are required: value
+无法设置全局参数，将在节点启动时设置
+等待节点启动...
+[INFO] [1742577711.020670169] [lms_mapper]: 地图参数: 尺寸=1000x1000, 分辨率=0.1米/格
+[INFO] [1742577711.053177877] [lms_mapper]: 地图重置功能已禁用，将持续累积所有障碍物数据
+[INFO] [1742577711.053589836] [lms_mapper]: 中间地图保存间隔: 60.0秒
+[INFO] [1742577711.053802169] [lms_mapper]: 清除过期障碍物功能已禁用，将保留所有检测到的障碍物
+[INFO] [1742577711.054037544] [lms_mapper]: 运动过滤功能已启用：最小运动距离=0.5米，静止忽略时间=0.2秒
+[INFO] [1742577711.054249544] [lms_mapper]: 使用自适应阈值：基础阈值=2，距离因子=0.5
+[INFO] [1742577711.276820003] [lms_mapper]: LMS mapper node已启动
+[INFO] [1742577711.277159419] [lms_mapper]: LMS mapper node已启动，等待数据...
+[WARN] [1742577712.407586836] [lms_mapper]: 等待数据中... 20/600秒
+[WARN] [1742577713.576656254] [lms_mapper]: 等待数据中... 40/600秒
+节点已启动，PID: 30210
+检查可用的话题...
+[WARN] [1742577714.748523713] [lms_mapper]: 等待数据中... 60/600秒
+[WARN] [1742577715.813604963] [lms_mapper]: 等待数据中... 80/600秒
+[WARN] [1742577716.937565964] [lms_mapper]: 等待数据中... 100/600秒
+[WARN] [1742577718.077599422] [lms_mapper]: 等待数据中... 120/600秒
+/clock
+/map
+/odom
+/parameter_events
+/rosout
+/scan
+[WARN] [1742577719.211243340] [lms_mapper]: 等待数据中... 140/600秒
+等待话题准备就绪...
+[WARN] [1742577720.355579340] [lms_mapper]: 等待数据中... 160/600秒
+[WARN] [1742577721.519797757] [lms_mapper]: 等待数据中... 180/600秒
+[WARN] [1742577722.608550383] [lms_mapper]: 等待数据中... 200/600秒
+[WARN] [1742577723.669594883] [lms_mapper]: 等待数据中... 220/600秒
+✅ /map 话题已准备就绪
+正在播放rosbag数据...
+等待系统准备就绪，确保时钟同步...
+[WARN] [1742577724.727628759] [lms_mapper]: 等待数据中... 240/600秒
+[WARN] [1742577725.823610843] [lms_mapper]: 等待数据中... 260/600秒
+[WARN] [1742577726.916543260] [lms_mapper]: 等待数据中... 280/600秒
+[WARN] [1742577728.008561594] [lms_mapper]: 等待数据中... 300/600秒
+[WARN] [1742577729.123566053] [lms_mapper]: 等待数据中... 320/600秒
+开始播放rosbag...
+[WARN] [1742577730.260271470] [lms_mapper]: 等待数据中... 340/600秒
+[WARN] [1742577731.389539679] [lms_mapper]: 等待数据中... 360/600秒
+[WARN] [1742577732.550358679] [lms_mapper]: 等待数据中... 380/600秒
+等待rosbag播放完成...
+stdin is not a terminal device. Keyboard handling disabled.[INFO] [1742577733.783824722] [rosbag2_storage]: Opened database 'lms_data.bag/lms_data.bag_0.db3' for READ_ONLY.
+[WARN] [1742577733.821487930] [lms_mapper]: 等待数据中... 400/600秒
+[INFO] [1742577733.876672513] [rosbag2_player]: Set rate to 0.1
+[INFO] [1742577734.041516263] [rosbag2_player]: Adding keyboard callbacks.
+[INFO] [1742577734.042278263] [rosbag2_player]: Press SPACE for Pause/Resume
+[INFO] [1742577734.042319013] [rosbag2_player]: Press CURSOR_RIGHT for Play Next Message
+[INFO] [1742577734.042338513] [rosbag2_player]: Press CURSOR_UP for Increase Rate 10%
+[INFO] [1742577734.042367972] [rosbag2_player]: Press CURSOR_DOWN for Decrease Rate 10%
+[INFO] [1742577734.063554847] [rosbag2_storage]: Opened database 'lms_data.bag/lms_data.bag_0.db3' for READ_ONLY.
+[INFO] [1742577734.206123138] [lms_mapper]: 接收到激光数据: frame_id=laser, 点数=361
+[INFO] [1742577734.228244222] [lms_mapper]: 记录起始位置: x=0.00, y=0.00, theta=0.00
+[INFO] [1742577734.244106138] [lms_mapper]: 记录起始位置: x=0.00, y=0.00, theta=0.00
+[INFO] [1742577734.252502555] [lms_mapper]: 当前使用的障碍物计数阈值: 1
+[INFO] [1742577740.980303461] [lms_mapper]: 机器人静止中 (6.8秒)，跳过处理激光数据
+[INFO] [1742577747.988772464] [lms_mapper]: 机器人静止中 (13.8秒)，跳过处理激光数据
+[INFO] [1742577747.989809464] [lms_mapper]: 已接收轨迹点: 100
+[INFO] [1742577748.024289047] [lms_mapper]: 已接收轨迹点: 100
+[INFO] [1742577748.045261672] [lms_mapper]: 已接收轨迹点: 100
+[INFO] [1742577748.078869881] [lms_mapper]: 已接收轨迹点: 100
+[INFO] [1742577748.087875131] [lms_mapper]: 已接收轨迹点: 100
+[INFO] [1742577748.137141756] [lms_mapper]: 已接收轨迹点: 100
+[INFO] [1742577748.137643297] [lms_mapper]: 接收到激光数据: frame_id=laser, 点数=361
+[INFO] [1742577748.137956589] [lms_mapper]: 【激光雷达坐标】x=0.0000, y=0.0000, theta=0.0000
+[INFO] [1742577748.138366214] [lms_mapper]: 已接收轨迹点: 100
+⏳ 正在播放rosbag - 已等待 15/1800 秒...
+当前活跃话题:

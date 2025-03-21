@@ -1,0 +1,3 @@
+[console_scripts]
+lms_mapper_node = lms_mapper.lms_mapper_node:main
+
