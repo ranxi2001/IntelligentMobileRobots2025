@@ -12,6 +12,7 @@ import struct
 import os
 from matplotlib.colors import LinearSegmentedColormap
 import math
+from scipy.spatial import cKDTree
 
 # 设置matplotlib支持中文显示
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
@@ -163,13 +164,14 @@ class OccupancyGridMapper:
         world_y = (grid_y - self.origin_y) * self.resolution
         return world_x, world_y
     
-    def update_map(self, points, threshold=1):
+    def update_map(self, points, threshold=1, distance_to_start=None):
         """
         使用激光点更新占用栅格地图
         
         参数:
             points: 激光点在世界坐标系中的坐标，形状为 (n, 2)
             threshold: 阈值，一个栅格中激光点数超过此值时标记为占用
+            distance_to_start: 机器人当前位置距离起点的距离（可选）
         """
         # 添加额外的预处理，过滤掉可能的异常点
         # 检测离群点 - 这些点可能是噪声
@@ -207,17 +209,30 @@ class OccupancyGridMapper:
             if 0 <= grid_x < self.size_x and 0 <= grid_y < self.size_y:
                 self.count_map[grid_x, grid_y] += 1
         
-        # 更新占用栅格地图，使用更严格的阈值处理左侧区域
+        # 更新占用栅格地图，使用空间自适应阈值
         for x in range(self.size_x):
             for y in range(self.size_y):
                 # 转换回世界坐标计算位置
                 world_x, world_y = self.grid_to_world(x, y)
                 
-                # 左侧区域（x值较小的区域）使用更高的阈值
+                # 根据不同区域使用不同阈值
                 local_threshold = threshold
-                if world_x < 0:  # 左侧区域
+                
+                # 左侧区域（x值较小的区域）使用更高的阈值 - 通常有更多噪声
+                if world_x < 0:  
                     local_threshold = max(2, threshold + 1)  # 更严格的阈值
                 
+                # 远距离区域使用更高的阈值 - 减少远处的噪声
+                distance_from_origin = np.sqrt(world_x**2 + world_y**2)
+                if distance_from_origin > 20:  # 超过20米的点
+                    local_threshold = max(local_threshold, threshold + 1)
+                
+                # 如果提供了距离起点的距离，可以实现"从开始行驶后再记录"的功能
+                if distance_to_start is not None and distance_to_start < 1.0:
+                    # 如果机器人刚开始行驶（距离起点小于1米），使用更高阈值
+                    local_threshold = max(3, local_threshold + 2)
+                
+                # 应用阈值更新地图
                 if self.count_map[x, y] > local_threshold:
                     self.grid_map[x, y] = 1
     
@@ -230,17 +245,17 @@ class OccupancyGridMapper:
             save_path: 保存图像的路径
         """
         # 创建图形
-        plt.figure(figsize=(12, 12))
+        plt.figure(figsize=(14, 14))
         
-        # 创建红白配色方案
-        red_white_cmap = LinearSegmentedColormap.from_list('red_white_cmap', 
-                                                          ['#FFFFFF', '#FF0000'])
+        # 创建更好的配色方案 - 白色到红色的渐变
+        cmap = LinearSegmentedColormap.from_list('custom_cmap', 
+                                               ['#FFFFFF', '#FFE0E0', '#FFB0B0', '#FF8080', '#FF4040', '#FF0000'])
         
         # 提取需要显示的栅格区域
         visible_grid = self.grid_map
         
         # 绘制占用栅格地图
-        plt.imshow(visible_grid.T, cmap=red_white_cmap, origin='lower',
+        plt.imshow(visible_grid.T, cmap=cmap, origin='lower',
                   extent=[
                       -self.origin_x * self.resolution,
                       (self.size_x - self.origin_x) * self.resolution,
@@ -310,30 +325,68 @@ class OccupancyGridMapper:
         plt.xticks(np.arange(math.floor(display_min_x), math.ceil(display_max_x)+1, grid_step))
         plt.yticks(np.arange(math.floor(display_min_y), math.ceil(display_max_y)+1, grid_step))
         
-        # 绘制机器人轨迹
+        # 绘制机器人轨迹 - 使用渐变色显示轨迹以示时间进度
         if robot_trajectory is not None and len(robot_trajectory) > 0:
             traj_x, traj_y = zip(*robot_trajectory)
-            plt.plot(traj_x, traj_y, 'b-', linewidth=2, label='机器人轨迹')
+            
+            # 创建轨迹的颜色映射，从青蓝色渐变到深蓝色
+            traj_points = np.array(robot_trajectory)
+            traj_segments = np.array([traj_points[:-1], traj_points[1:]]).transpose(1, 0, 2)
+            
+            # 创建颜色映射
+            norm = plt.Normalize(0, len(traj_segments))
+            colors = plt.cm.viridis(norm(range(len(traj_segments))))
+            
+            # 绘制分段线条
+            for i, (segment, color) in enumerate(zip(traj_segments, colors)):
+                plt.plot([segment[0][0], segment[1][0]], 
+                        [segment[0][1], segment[1][1]], 
+                        color=color, linewidth=2.5, solid_capstyle='round')
+            
             # 标记起点和终点
-            plt.plot(traj_x[0], traj_y[0], 'go', markersize=10, label='起点')
-            plt.plot(traj_x[-1], traj_y[-1], 'ko', markersize=10, label='终点')
-        
-        # 添加图例
-        plt.legend(loc='upper right')
+            plt.plot(traj_x[0], traj_y[0], 'go', markersize=12, markeredgecolor='black', label='起点')
+            plt.plot(traj_x[-1], traj_y[-1], 'ro', markersize=12, markeredgecolor='black', label='终点')
+            
+            # 每隔一定间隔标记位置
+            marker_interval = max(1, len(traj_x) // 10)  # 最多标记10个点
+            for i in range(0, len(traj_x), marker_interval):
+                if i > 0 and i < len(traj_x) - 1:  # 跳过起点和终点
+                    plt.plot(traj_x[i], traj_y[i], 'bo', markersize=6, alpha=0.7)
+            
+            # 添加一个自定义的图例条目，表示轨迹
+            from matplotlib.lines import Line2D
+            legend_elements = [
+                Line2D([0], [0], color='blue', lw=2, label='机器人轨迹'),
+                plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='g', markersize=10, label='起点'),
+                plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='r', markersize=10, label='终点')
+            ]
+            plt.legend(handles=legend_elements, loc='upper right')
+        else:
+            plt.legend(loc='upper right')
         
         # 添加标题和轴标签
-        plt.title('占用栅格地图 (白色=空闲, 红色=障碍物)', fontsize=14)
-        plt.xlabel('X (m)', fontsize=12)
-        plt.ylabel('Y (m)', fontsize=12)
+        plt.title('占用栅格地图 (白色=空闲空间, 红色=障碍物)', fontsize=16, fontweight='bold')
+        plt.xlabel('X 坐标 (米)', fontsize=14)
+        plt.ylabel('Y 坐标 (米)', fontsize=14)
         
         # 调整坐标轴颜色为黑色
-        plt.tick_params(colors='black')
+        plt.tick_params(colors='black', labelsize=12)
         plt.gca().xaxis.label.set_color('black')
         plt.gca().yaxis.label.set_color('black')
         plt.gca().title.set_color('black')
         
+        # 添加颜色条
+        cbar = plt.colorbar(plt.cm.ScalarMappable(cmap=cmap), 
+                          ax=plt.gca(), shrink=0.8, pad=0.02)
+        cbar.set_label('占用状态', fontsize=12)
+        
         # 保存图像
         if save_path:
+            # 确保目标目录存在
+            save_dir = os.path.dirname(save_path)
+            if save_dir and not os.path.exists(save_dir):
+                os.makedirs(save_dir)
+                
             plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='white')
             print(f"地图已保存至 {save_path}，显示范围: x=[{display_min_x:.1f}, {display_max_x:.1f}], y=[{display_min_y:.1f}, {display_max_y:.1f}]")
         
@@ -358,8 +411,8 @@ def laser_to_world(robot_pose, laser_ranges, laser_angles):
     robot_theta = robot_pose['ang_z']
     
     # 增强过滤条件，避免将异常值解释为障碍物
-    min_valid_range = 0.1  # 设置最小有效距离（米）
-    max_valid_range = 50.0  # 设置最大有效距离（米）
+    min_valid_range = 0.15  # 设置最小有效距离（米）- 适当增加以过滤近距离噪声
+    max_valid_range = 40.0  # 设置最大有效距离（米）- 减小以过滤远距离噪声
     valid_indices = (laser_ranges > min_valid_range) & (laser_ranges < max_valid_range)
     
     # 额外过滤左侧区域异常点（约0-20度范围）
@@ -376,9 +429,36 @@ def laser_to_world(robot_pose, laser_ranges, laser_angles):
             diff_next = abs(laser_ranges[i] - laser_ranges[i+1])
             
             # 如果与相邻点的差异过大，标记为无效
-            if diff_prev > 1.0 and diff_next > 1.0:
+            if diff_prev > 0.8 and diff_next > 0.8:  # 降低阈值，更严格的过滤
                 valid_indices[i] = False
     
+    # 应用中值滤波来平滑数据
+    window_size = 3  # 滤波窗口大小
+    smoothed_ranges = np.copy(laser_ranges)
+    
+    for i in range(window_size//2, len(laser_ranges) - window_size//2):
+        # 只对有效的激光点应用滤波
+        if valid_indices[i]:
+            window = laser_ranges[i-window_size//2:i+window_size//2+1]
+            valid_window = window[(window > min_valid_range) & (window < max_valid_range)]
+            if len(valid_window) > 0:
+                smoothed_ranges[i] = np.median(valid_window)
+    
+    # 更新有效范围数组，使用平滑后的数据
+    laser_ranges = smoothed_ranges
+    
+    # 额外检测明显的离群值 - 与周围点差异太大的点
+    for i in range(1, len(laser_ranges) - 1):
+        if valid_indices[i]:
+            # 计算与相邻点的平均差异
+            avg_diff = (abs(laser_ranges[i] - laser_ranges[i-1]) + 
+                       abs(laser_ranges[i] - laser_ranges[i+1])) / 2
+            
+            # 如果差异过大，很可能是噪声
+            if avg_diff > 1.0:  # 1米的阈值，可以根据实际情况调整
+                valid_indices[i] = False
+    
+    # 只处理有效的激光点
     valid_ranges = laser_ranges[valid_indices]
     valid_angles = laser_angles[valid_indices]
     
@@ -394,7 +474,22 @@ def laser_to_world(robot_pose, laser_ranges, laser_angles):
     world_x = robot_x + laser_x * cos_theta - laser_y * sin_theta
     world_y = robot_y + laser_x * sin_theta + laser_y * cos_theta
     
-    return np.column_stack((world_x, world_y))
+    # 返回世界坐标系中的点
+    world_points = np.column_stack((world_x, world_y))
+    
+    # 最后一步：移除可能的离群点
+    if len(world_points) > 10:
+        # 计算每个点到其最近邻点的距离
+        kdtree = cKDTree(world_points)
+        distances, _ = kdtree.query(world_points, k=2)  # k=2返回自身和最近邻
+        nearest_distances = distances[:, 1]  # 第二列是到最近邻的距离
+        
+        # 找出离群点 - 距离最近邻太远的点
+        median_dist = np.median(nearest_distances)
+        outliers = nearest_distances > 5 * median_dist  # 超过中位数5倍的点认为是离群点
+        world_points = world_points[~outliers]
+    
+    return world_points
 
 
 def main():
@@ -425,17 +520,20 @@ def main():
     print("  - 分辨率: 0.2米/格 (高精度显示障碍物)")
     print("  - 地图尺寸: 500格 (确保覆盖完整场景)")
     print("  - 阈值: 1 (将所有检测到的激光点显示为障碍物)")
+    print("  - 起始行驶距离: 2.0米 (小车移动2米后开始正常记录障碍物)")
     
     # 设置栅格地图参数
     try:
         resolution = float(input("\n请输入栅格地图分辨率(米/格)，默认为0.2: ") or 0.2)
         size = int(input("请输入栅格地图尺寸(格数)，默认为500: ") or 500)
         threshold = int(input("请输入占用阈值(点数大于此值标记为占用)，默认为1: ") or 1)
+        start_distance = float(input("请输入起始行驶距离(米)，默认为2.0: ") or 2.0)
     except ValueError:
         print("输入无效，使用默认值")
         resolution = 0.2
         size = 500
         threshold = 1
+        start_distance = 2.0
     
     # 读取激光数据和轨迹数据
     print(f"\n1. 正在读取激光数据文件：{laser_file}")
@@ -486,6 +584,10 @@ def main():
     for pose in trajectory_reader.trajectory:
         robot_trajectory.append((pose['shv_x'], pose['shv_y']))
     
+    # 记录起点位置
+    start_position = (trajectory_reader.trajectory[0]['shv_x'], 
+                      trajectory_reader.trajectory[0]['shv_y'])
+    
     # 开始处理激光扫描数据
     for i, scan in enumerate(valid_scans):
         # 找到对应的机器人姿态
@@ -493,14 +595,21 @@ def main():
         if pose is None:
             continue
         
+        # 计算机器人距离起点的距离
+        current_position = (pose['shv_x'], pose['shv_y'])
+        distance_to_start = np.sqrt((current_position[0] - start_position[0])**2 + 
+                                   (current_position[1] - start_position[1])**2)
+        
         # 将激光数据转换为实际距离（米）
         laser_ranges = laser_reader.convert_to_distances(scan['laser_data'])
         
         # 将激光点转换到世界坐标系
         world_points = laser_to_world(pose, laser_ranges, laser_angles)
         
-        # 更新占用栅格地图
-        grid_mapper.update_map(world_points, threshold=threshold)
+        # 更新占用栅格地图 - 传入距离起点的距离，以实现在行驶一定距离后再正常记录
+        if distance_to_start < start_distance:
+            print(f"   机器人距离起点: {distance_to_start:.2f}米 < {start_distance}米，使用高阈值过滤")
+        grid_mapper.update_map(world_points, threshold=threshold, distance_to_start=distance_to_start)
         
         # 打印进度
         if i % process_interval == 0:

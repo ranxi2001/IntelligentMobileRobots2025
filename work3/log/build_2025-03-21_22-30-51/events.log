@@ -1,0 +1,188 @@
+[0.000000] (-) TimerEvent: {}
+[0.000837] (-) JobUnselected: {'identifier': 'lms_data'}
+[0.000870] (lms_mapper) JobQueued: {'identifier': 'lms_mapper', 'dependencies': OrderedDict()}
+[0.000933] (lms_mapper) JobStarted: {'identifier': 'lms_mapper'}
+[0.095610] (-) TimerEvent: {}
+[0.201090] (-) TimerEvent: {}
+[0.301548] (-) TimerEvent: {}
+[0.402660] (-) TimerEvent: {}
+[0.504660] (-) TimerEvent: {}
+[0.609615] (-) TimerEvent: {}
+[0.710680] (-) TimerEvent: {}
+[0.811561] (-) TimerEvent: {}
+[0.915933] (-) TimerEvent: {}
+[1.016580] (-) TimerEvent: {}
+[1.118558] (-) TimerEvent: {}
+[1.219566] (-) TimerEvent: {}
+[1.320562] (-) TimerEvent: {}
+[1.424597] (-) TimerEvent: {}
+[1.527568] (-) TimerEvent: {}
+[1.633569] (-) TimerEvent: {}
+[1.734579] (-) TimerEvent: {}
+[1.835558] (-) TimerEvent: {}
+[1.936662] (-) TimerEvent: {}
+[2.038656] (-) TimerEvent: {}
+[2.141632] (-) TimerEvent: {}
+[2.244665] (-) TimerEvent: {}
+[2.345568] (-) TimerEvent: {}
+[2.449947] (-) TimerEvent: {}
+[2.555727] (-) TimerEvent: {}
+[2.658562] (-) TimerEvent: {}
+[2.759556] (-) TimerEvent: {}
+[2.860553] (-) TimerEvent: {}
+[2.961587] (-) TimerEvent: {}
+[3.062571] (-) TimerEvent: {}
+[3.167567] (-) TimerEvent: {}
+[3.268956] (-) TimerEvent: {}
+[3.370561] (-) TimerEvent: {}
+[3.471572] (-) TimerEvent: {}
+[3.575616] (-) TimerEvent: {}
+[3.681914] (-) TimerEvent: {}
+[3.790108] (-) TimerEvent: {}
+[3.891660] (-) TimerEvent: {}
+[3.998575] (-) TimerEvent: {}
+[4.099563] (-) TimerEvent: {}
+[4.201662] (-) TimerEvent: {}
+[4.306187] (-) TimerEvent: {}
+[4.410610] (-) TimerEvent: {}
+[4.512875] (-) TimerEvent: {}
+[4.613562] (-) TimerEvent: {}
+[4.714566] (-) TimerEvent: {}
+[4.835850] (-) TimerEvent: {}
+[4.978569] (-) TimerEvent: {}
+[5.088574] (-) TimerEvent: {}
+[5.192542] (-) TimerEvent: {}
+[5.295697] (-) TimerEvent: {}
+[5.409567] (-) TimerEvent: {}
+[5.519543] (-) TimerEvent: {}
+[5.626972] (-) TimerEvent: {}
+[5.733564] (-) TimerEvent: {}
+[5.840561] (-) TimerEvent: {}
+[5.944566] (-) TimerEvent: {}
+[6.054533] (-) TimerEvent: {}
+[6.155568] (-) TimerEvent: {}
+[6.256577] (-) TimerEvent: {}
+[6.357566] (-) TimerEvent: {}
+[6.465562] (-) TimerEvent: {}
+[6.570132] (-) TimerEvent: {}
+[6.680622] (-) TimerEvent: {}
+[6.793656] (-) TimerEvent: {}
+[6.894586] (-) TimerEvent: {}
+[6.998661] (-) TimerEvent: {}
+[7.113566] (-) TimerEvent: {}
+[7.219563] (-) TimerEvent: {}
+[7.326561] (-) TimerEvent: {}
+[7.431569] (-) TimerEvent: {}
+[7.532555] (-) TimerEvent: {}
+[7.643207] (-) TimerEvent: {}
+[7.744570] (-) TimerEvent: {}
+[7.847613] (-) TimerEvent: {}
+[7.952561] (-) TimerEvent: {}
+[8.053783] (-) TimerEvent: {}
+[8.160609] (-) TimerEvent: {}
+[8.263560] (-) TimerEvent: {}
+[8.366991] (-) TimerEvent: {}
+[8.486933] (-) TimerEvent: {}
+[8.597946] (-) TimerEvent: {}
+[8.771652] (-) TimerEvent: {}
+[8.875569] (-) TimerEvent: {}
+[8.976678] (-) TimerEvent: {}
+[9.077597] (-) TimerEvent: {}
+[9.192565] (-) TimerEvent: {}
+[9.314571] (-) TimerEvent: {}
+[9.417554] (-) TimerEvent: {}
+[9.518823] (-) TimerEvent: {}
+[9.657573] (-) TimerEvent: {}
+[9.758692] (-) TimerEvent: {}
+[9.866071] (-) TimerEvent: {}
+[9.970336] (-) TimerEvent: {}
+[10.083585] (-) TimerEvent: {}
+[10.184712] (-) TimerEvent: {}
+[10.297987] (-) TimerEvent: {}
+[10.415578] (-) TimerEvent: {}
+[10.516662] (-) TimerEvent: {}
+[10.620636] (-) TimerEvent: {}
+[10.732567] (-) TimerEvent: {}
+[10.833562] (-) TimerEvent: {}
+[10.912811] (lms_mapper) Command: {'cmd': ['/usr/bin/python3', '-W', 'ignore:setup.py install is deprecated', '-W', 'ignore:easy_install command is deprecated', 'setup.py', 'egg_info', '--egg-base', '../../build/lms_mapper', 'build', '--build-base', '/IntelligentMobileRobots2025/work3/build/lms_mapper/build', 'install', '--record', '/IntelligentMobileRobots2025/work3/build/lms_mapper/install.log', '--single-version-externally-managed', 'install_data'], 'cwd': '/IntelligentMobileRobots2025/work3/src/lms_mapper', 'env': {'HOSTNAME': 'a1e9d42dcaf6', 'GIT_ASKPASS': '/root/.cursor-server/bin/ae378be9dc2f5f1a6a1a220c6e25f9f03c8d4e10/extensions/git/dist/askpass.sh', 'SHLVL': '2', 'LD_LIBRARY_PATH': '/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/lib', 'BROWSER': '/root/.cursor-server/bin/ae378be9dc2f5f1a6a1a220c6e25f9f03c8d4e10/bin/helpers/browser.sh', 'HOME': '/root', 'OLDPWD': '/IntelligentMobileRobots2025/work3', 'TERM_PROGRAM_VERSION': '0.46.11', 'VSCODE_IPC_HOOK_CLI': '/tmp/vscode-ipc-be3428f9-9c16-48f8-9da8-42b83863e709.sock', 'ROS_PYTHON_VERSION': '3', 'VSCODE_GIT_ASKPASS_MAIN': '/root/.cursor-server/bin/ae378be9dc2f5f1a6a1a220c6e25f9f03c8d4e10/extensions/git/dist/askpass-main.js', 'VSCODE_GIT_ASKPASS_NODE': '/root/.cursor-server/bin/ae378be9dc2f5f1a6a1a220c6e25f9f03c8d4e10/node', 'COLORTERM': 'truecolor', 'REMOTE_CONTAINERS': 'true', 'COLCON_PREFIX_PATH': '/IntelligentMobileRobots2025/work3/install', 'ROS_DISTRO': 'humble', 'REMOTE_CONTAINERS_IPC': '/tmp/vscode-remote-containers-ipc-16222778-a367-4f53-8379-e9783a90a46e.sock', '_': '/usr/bin/colcon', 'ROS_VERSION': '2', 'TERM': 'xterm-256color', 'ROS_LOCALHOST_ONLY': '0', 'UV_USE_IO_URING': '0', 'QT_X11_NO_MITSHM': '1', 'PATH': '/IntelligentMobileRobots2025/work3/install/lms_mapper/bin:/IntelligentMobileRobots2025/work3/install/lms_data/bin:/opt/ros/humble/bin:/root/.cursor-server/bin/ae378be9dc2f5f1a6a1a220c6e25f9f03c8d4e10/bin/remote-cli:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin', 'REMOTE_CONTAINERS_SOCKETS': '["/tmp/vscode-ssh-auth-16222778-a367-4f53-8379-e9783a90a46e.sock"]', 'DISPLAY': 'host.docker.internal:0', 'LANG': 'C.UTF-8', 'XAUTHORITY': '/root/.Xauthority', 'LS_COLORS': 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:', 'VSCODE_GIT_IPC_HANDLE': '/tmp/vscode-git-b15d405086.sock', 'TERM_PROGRAM': 'vscode', 'SSH_AUTH_SOCK': '/tmp/vscode-ssh-auth-16222778-a367-4f53-8379-e9783a90a46e.sock', 'AMENT_PREFIX_PATH': '/IntelligentMobileRobots2025/work3/install/lms_mapper:/IntelligentMobileRobots2025/work3/install/lms_data:/opt/ros/humble', 'SHELL': '/bin/bash', 'VSCODE_GIT_ASKPASS_EXTRA_ARGS': '', 'PWD': '/IntelligentMobileRobots2025/work3/build/lms_mapper', 'LC_ALL': 'C.UTF-8', 'PYTHONPATH': '/IntelligentMobileRobots2025/work3/build/lms_mapper/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages:/IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages:/IntelligentMobileRobots2025/work3/build/lms_data:/IntelligentMobileRobots2025/work3/install/lms_data/lib/python3.10/site-packages:/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages', 'TZ': 'Asia/Shanghai', 'COLCON': '1'}, 'shell': False}
+[10.955737] (-) TimerEvent: {}
+[11.057114] (-) TimerEvent: {}
+[11.165611] (-) TimerEvent: {}
+[11.276663] (-) TimerEvent: {}
+[11.379571] (-) TimerEvent: {}
+[11.480699] (-) TimerEvent: {}
+[11.589570] (-) TimerEvent: {}
+[11.693561] (-) TimerEvent: {}
+[11.798664] (-) TimerEvent: {}
+[11.905063] (-) TimerEvent: {}
+[12.017928] (-) TimerEvent: {}
+[12.127594] (-) TimerEvent: {}
+[12.247399] (-) TimerEvent: {}
+[12.354698] (-) TimerEvent: {}
+[12.463568] (-) TimerEvent: {}
+[12.570953] (-) TimerEvent: {}
+[12.693301] (-) TimerEvent: {}
+[12.803555] (-) TimerEvent: {}
+[12.907568] (-) TimerEvent: {}
+[13.013579] (-) TimerEvent: {}
+[13.117564] (-) TimerEvent: {}
+[13.218748] (-) TimerEvent: {}
+[13.331567] (-) TimerEvent: {}
+[13.437339] (-) TimerEvent: {}
+[13.547562] (-) TimerEvent: {}
+[13.654678] (-) TimerEvent: {}
+[13.758562] (-) TimerEvent: {}
+[13.875563] (-) TimerEvent: {}
+[13.976573] (-) TimerEvent: {}
+[14.082710] (-) TimerEvent: {}
+[14.183595] (-) TimerEvent: {}
+[14.294564] (-) TimerEvent: {}
+[14.395571] (-) TimerEvent: {}
+[14.499576] (-) TimerEvent: {}
+[14.611567] (-) TimerEvent: {}
+[14.717565] (-) TimerEvent: {}
+[14.818634] (-) TimerEvent: {}
+[14.919689] (-) TimerEvent: {}
+[15.029573] (-) TimerEvent: {}
+[15.130592] (-) TimerEvent: {}
+[15.240566] (-) TimerEvent: {}
+[15.345626] (-) TimerEvent: {}
+[15.443594] (lms_mapper) StdoutLine: {'line': b'running egg_info\n'}
+[15.444504] (lms_mapper) StdoutLine: {'line': b'writing ../../build/lms_mapper/lms_mapper.egg-info/PKG-INFO\n'}
+[15.453857] (lms_mapper) StdoutLine: {'line': b'writing dependency_links to ../../build/lms_mapper/lms_mapper.egg-info/dependency_links.txt\n'}
+[15.453968] (-) TimerEvent: {}
+[15.454083] (lms_mapper) StdoutLine: {'line': b'writing entry points to ../../build/lms_mapper/lms_mapper.egg-info/entry_points.txt\n'}
+[15.454159] (lms_mapper) StdoutLine: {'line': b'writing requirements to ../../build/lms_mapper/lms_mapper.egg-info/requires.txt\n'}
+[15.454209] (lms_mapper) StdoutLine: {'line': b'writing top-level names to ../../build/lms_mapper/lms_mapper.egg-info/top_level.txt\n'}
+[15.463181] (lms_mapper) StdoutLine: {'line': b"reading manifest file '../../build/lms_mapper/lms_mapper.egg-info/SOURCES.txt'\n"}
+[15.465650] (lms_mapper) StdoutLine: {'line': b"writing manifest file '../../build/lms_mapper/lms_mapper.egg-info/SOURCES.txt'\n"}
+[15.482795] (lms_mapper) StdoutLine: {'line': b'running build\n'}
+[15.482961] (lms_mapper) StdoutLine: {'line': b'running build_py\n'}
+[15.483022] (lms_mapper) StdoutLine: {'line': b'copying lms_mapper/lms_mapper_node.py -> /IntelligentMobileRobots2025/work3/build/lms_mapper/build/lib/lms_mapper\n'}
+[15.523128] (lms_mapper) StdoutLine: {'line': b'running install\n'}
+[15.523341] (lms_mapper) StdoutLine: {'line': b'running install_lib\n'}
+[15.523400] (lms_mapper) StdoutLine: {'line': b'copying /IntelligentMobileRobots2025/work3/build/lms_mapper/build/lib/lms_mapper/lms_mapper_node.py -> /IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages/lms_mapper\n'}
+[15.523521] (lms_mapper) StdoutLine: {'line': b'byte-compiling /IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages/lms_mapper/lms_mapper_node.py to lms_mapper_node.cpython-310.pyc\n'}
+[15.556656] (-) TimerEvent: {}
+[15.657571] (-) TimerEvent: {}
+[15.749644] (lms_mapper) StdoutLine: {'line': b'running install_data\n'}
+[15.749854] (lms_mapper) StdoutLine: {'line': b'running install_egg_info\n'}
+[15.770252] (lms_mapper) StdoutLine: {'line': b"removing '/IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages/lms_mapper-0.0.1-py3.10.egg-info' (and everything under it)\n"}
+[15.770960] (-) TimerEvent: {}
+[15.819536] (lms_mapper) StdoutLine: {'line': b'Copying ../../build/lms_mapper/lms_mapper.egg-info to /IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages/lms_mapper-0.0.1-py3.10.egg-info\n'}
+[15.819754] (lms_mapper) StdoutLine: {'line': b'running install_scripts\n'}
+[15.878960] (-) TimerEvent: {}
+[15.979585] (-) TimerEvent: {}
+[16.083586] (-) TimerEvent: {}
+[16.184792] (-) TimerEvent: {}
+[16.283965] (lms_mapper) StdoutLine: {'line': b'Installing lms_mapper_node script to /IntelligentMobileRobots2025/work3/install/lms_mapper/bin\n'}
+[16.284178] (lms_mapper) StdoutLine: {'line': b"writing list of installed files to '/IntelligentMobileRobots2025/work3/build/lms_mapper/install.log'\n"}
+[16.290549] (-) TimerEvent: {}
+[16.391570] (-) TimerEvent: {}
+[16.493572] (-) TimerEvent: {}
+[16.597403] (-) TimerEvent: {}
+[16.641506] (lms_mapper) CommandEnded: {'returncode': 0}
+[16.742665] (-) TimerEvent: {}
+[16.855626] (-) TimerEvent: {}
+[16.924283] (lms_mapper) JobEnded: {'identifier': 'lms_mapper', 'rc': 0}
+[16.924741] (-) EventReactorShutdown: {}
