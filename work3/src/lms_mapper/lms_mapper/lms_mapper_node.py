@@ -1084,17 +1084,14 @@ class LmsMapperNode(Node):
                                 # 转弯时根据距离动态调整阈值
                                 if self.is_turning:
                                     # 距离自适应阈值计算
-                                    if distance < 1.5:  # 非常近的障碍物
-                                        # 近距离障碍物使用较低阈值，但仍然比正常阈值高
-                                        local_threshold = max(1.5, self.base_threshold * 1.2)
-                                    elif distance < 3.0:  # 中等距离
-                                        # 中等距离障碍物使用更高的阈值
-                                        local_threshold = max(2.0, self.base_threshold * 1.5)
-                                    else:  # 远距离障碍物
-                                        # 远处障碍物需要更多累积才能被记录
-                                        local_threshold = max(3.0, self.base_threshold * 2.0)
-                                        # 随距离增加而提高阈值
-                                        local_threshold += (distance - 3.0) * 0.8
+                                    if distance < 1.0:  # 1米内的障碍物
+                                        # 近距离障碍物使用稍高阈值
+                                        local_threshold = max(2.0, self.base_threshold * 1.2)
+                                    else:  # 距离超过1米的点
+                                        # 远处障碍物使用极高阈值，实际上基本不会被记录
+                                        local_threshold = max(6.0, self.base_threshold * 4.0)
+                                        # 随距离增加而大幅提高阈值
+                                        local_threshold += (distance - 1.0) * 2.0
                                 else:
                                     # 非转弯状态下的常规阈值计算
                                     if distance > 5.0:  # 5米以外的点
@@ -1141,17 +1138,14 @@ class LmsMapperNode(Node):
                                 # 转弯时根据距离动态调整阈值
                                 if self.is_turning:
                                     # 距离自适应阈值计算
-                                    if distance < 1.5:  # 非常近的障碍物
-                                        # 近距离障碍物使用较低阈值，但仍然比正常阈值高
-                                        local_threshold = max(1.5, self.base_threshold * 1.2)
-                                    elif distance < 3.0:  # 中等距离
-                                        # 中等距离障碍物使用更高的阈值
-                                        local_threshold = max(2.0, self.base_threshold * 1.5)
-                                    else:  # 远距离障碍物
-                                        # 远处障碍物需要更多累积才能被记录
-                                        local_threshold = max(3.0, self.base_threshold * 2.0)
-                                        # 随距离增加而提高阈值
-                                        local_threshold += (distance - 3.0) * 0.8
+                                    if distance < 1.0:  # 1米内的障碍物
+                                        # 近距离障碍物使用稍高阈值
+                                        local_threshold = max(2.0, self.base_threshold * 1.2)
+                                    else:  # 距离超过1米的点
+                                        # 远处障碍物使用极高阈值，实际上基本不会被记录
+                                        local_threshold = max(6.0, self.base_threshold * 4.0)
+                                        # 随距离增加而大幅提高阈值
+                                        local_threshold += (distance - 1.0) * 2.0
                                 else:
                                     # 非转弯状态下的常规阈值计算
                                     if distance > 5.0:  # 5米以外的点
@@ -1224,17 +1218,21 @@ class LmsMapperNode(Node):
             
             # 在特定条件下进行地图平滑处理，减少转弯处的不连续性
             if self.smooth_map_enabled:
-                # 转弯中或刚结束转弯时更频繁地平滑
-                if self.is_turning or (hasattr(self, 'turning_just_ended') and self.turning_just_ended):
-                    # 转弯中每20次更新进行一次平滑
-                    smooth_interval = 20
+                # 在转弯时完全避免平滑，因为这可能导致障碍物位置错误
+                if self.is_turning:
+                    # 转弯中不进行平滑，完全依赖严格的点云过滤
+                    # 如果需要调试，可以打开下面的日志
+                    if self._map_stats_count % 50 == 0:
+                        self.get_logger().info(f'转弯中，避免平滑处理，依赖严格的距离过滤')
+                elif hasattr(self, 'turning_just_ended') and self.turning_just_ended:
+                    # 转弯刚结束后使用很少的平滑，只在必要时清理
+                    if self._map_stats_count % 100 == 0 and np.sum(self.grid_map) > 100:
+                        self.get_logger().info(f'转弯刚结束，只进行最小程度的平滑')
+                        self.smooth_map_simple()  # 使用简单平滑，避免高斯模糊造成的方位错误
                 else:
-                    # 正常行驶时每50次更新进行一次平滑
-                    smooth_interval = 50
-                    
-                # 根据设定的间隔进行平滑处理
-                if self._map_stats_count % smooth_interval == 0 and np.sum(self.grid_map) > 100:
-                    self.smooth_map()
+                    # 正常行驶时正常进行平滑处理
+                    if self._map_stats_count % 50 == 0 and np.sum(self.grid_map) > 100:
+                        self.smooth_map()
         
         except Exception as e:
             # 捕获所有异常，防止崩溃
@@ -1947,37 +1945,33 @@ class LmsMapperNode(Node):
             self.get_logger().error(f'地图平滑处理时出错: {str(e)}')
     
     def smooth_map_simple(self):
-        """使用简单的邻域平均进行地图平滑处理（scipy不可用时的备用方法）"""
+        """简单的地图平滑方法，只移除孤立点，不改变障碍物的整体位置和方向"""
         try:
-            # 创建临时地图副本
-            temp_map = np.copy(self.grid_map)
+            self.get_logger().info('使用简单平滑方法处理地图，移除孤立点')
             
-            # 遍历地图每个点
-            for x in range(1, self.size_x - 1):
-                for y in range(1, self.size_y - 1):
-                    # 计算3x3邻域中障碍物数量
-                    obstacle_count = 0
-                    for dx in [-1, 0, 1]:
-                        for dy in [-1, 0, 1]:
-                            if self.grid_map[x + dx, y + dy] > 0:
-                                obstacle_count += 1
-                    
-                    # 根据邻域障碍物数量调整当前点状态
-                    if obstacle_count >= 5 and self.grid_map[x, y] == 0:
-                        # 如果周围大部分是障碍物，但当前点不是，则填充
-                        if self.is_turning or obstacle_count >= 6:
-                            temp_map[x, y] = 1
-                    elif obstacle_count <= 2 and self.grid_map[x, y] > 0:
-                        # 如果是孤立障碍物点，则移除
-                        temp_map[x, y] = 0
+            # 创建地图副本
+            grid_copy = self.grid_map.copy()
+            removed_count = 0
             
-            # 应用平滑结果
-            self.grid_map = temp_map
+            # 遍历地图的每个格子，只处理标记为障碍物的格子
+            for x in range(1, self.size_x-1):
+                for y in range(1, self.size_y-1):
+                    # 只处理障碍物格子
+                    if self.grid_map[x, y] > 0:
+                        # 计算周围的障碍物数量
+                        neighbor_count = self.count_neighbor_obstacles(x, y)
+                        
+                        # 如果是孤立点或几乎孤立的点（邻居少于2个），则移除它
+                        if neighbor_count < 2:
+                            grid_copy[x, y] = 0
+                            removed_count += 1
             
-            self.get_logger().debug("使用简单平滑方法处理地图完成")
-        
+            # 更新地图
+            self.grid_map = grid_copy
+            self.get_logger().info(f'简单平滑完成: 移除了{removed_count}个孤立点')
+            
         except Exception as e:
-            self.get_logger().warning(f'简单地图平滑过程中出错: {str(e)}')
+            self.get_logger().error(f'简单地图平滑处理时出错: {str(e)}')
 
     def count_neighbor_obstacles(self, x, y):
         """计算指定位置周围的障碍物数量"""
@@ -2051,7 +2045,7 @@ class LmsMapperNode(Node):
                 movement_direction = math.atan2(dy, dx)
         
         # 转弯时的最大距离限制（使用动态计算的值）
-        max_distance_in_turn = getattr(self, 'turning_max_distance', 3.0)  # 如果没有设置，默认3米
+        max_distance_in_turn = 1.5  # 转弯时严格限制为1.5米以内
         
         # 记录当前使用的距离限制（降低日志频率）
         if hasattr(self, '_filter_log_count'):
@@ -2060,7 +2054,7 @@ class LmsMapperNode(Node):
             self._filter_log_count = 0
             
         if self._filter_log_count % 100 == 0 and self.is_turning:
-            self.get_logger().info(f'转弯中使用障碍物距离限制: {max_distance_in_turn:.2f}米')
+            self.get_logger().info(f'转弯中使用严格障碍物距离限制: {max_distance_in_turn:.2f}米')
         
         # 计算当前雷达扫描的点云密度（用于质量评估）
         if len(points) > 0:
@@ -2069,7 +2063,7 @@ class LmsMapperNode(Node):
             point_density = 0
             
         # 在转弯状态下使用更严格的点云过滤标准
-        min_quality_threshold = 0.6 if self.is_turning else 0.3  # 转弯时要求更高的点质量
+        min_quality_threshold = 0.7 if self.is_turning else 0.3  # 转弯时要求更高的点质量
         
         # 根据运动方向过滤点
         for point in points:
@@ -2083,56 +2077,45 @@ class LmsMapperNode(Node):
             if dist < 0.001:  # 避免除零错误
                 continue
             
-            # 转弯时过滤远处障碍物
-            if self.is_turning and dist > max_distance_in_turn:
-                continue
-                
-            point_angle = math.atan2(dy, dx)
-            
-            # 计算点的方向与运动方向的夹角
-            angle_diff = abs(self.normalize_angle(point_angle - movement_direction))
-            
-            # 计算点的质量度量（0-1之间）
-            # 距离越近，质量越高；与移动方向越一致，质量越高
-            distance_quality = max(0, 1.0 - dist / 10.0)  # 10米以内，距离越近质量越高
-            direction_quality = max(0, 1.0 - angle_diff / math.pi)  # 与移动方向一致质量高
-            
-            # 综合质量评分
-            point_quality = 0.7 * distance_quality + 0.3 * direction_quality
-            
-            # 转弯时使用更严格的质量过滤
-            if self.is_turning and point_quality < min_quality_threshold:
-                continue
-            
-            # 转弯时使用不同的过滤策略
+            # 转弯时使用极其严格的距离过滤
             if self.is_turning:
-                # 转弯时更关注侧面的障碍物，但要求更高的质量
-                weight = 0.5  # 基础权重降低
-                if angle_diff < math.pi/4:  # 前方45度范围
-                    if dist < 1.5:  # 非常近的前方障碍物
-                        weight = 1.2  # 增强前方近距离障碍物权重
-                    else:
-                        weight = 0.8  # 降低前方远距离障碍物权重
-                elif math.pi/4 <= angle_diff < 3*math.pi/4:  # 侧面90度范围
-                    if dist < 2.0:  # 近距离侧面障碍物
-                        weight = 2.0  # 大幅增强侧面障碍物权重，这是转弯时最关键的部分
-                    else:
-                        weight = 1.0  # 远距离侧面障碍物保持正常权重
-                else:  # 后方范围
-                    if dist < 1.0:  # 非常近的后方障碍物
-                        weight = 1.2  # 只有非常近的后方障碍物才保留
-                    else:
-                        weight = 0.5  # 远距离后方障碍物大幅降低权重
+                # 只保留非常近的点
+                if dist > max_distance_in_turn:
+                    continue
+                    
+                # 计算点的角度
+                point_angle = math.atan2(dy, dx)
                 
-                # 点质量影响权重
-                weight *= point_quality
+                # 计算点与运动方向的夹角
+                angle_diff = abs(self.normalize_angle(point_angle - movement_direction))
                 
-                filtered_points.append((x, y, weight))
+                # 在转弯时，只保留侧面的近距离障碍物，丢弃远处和非侧面方向的点
+                if dist < 1.0:  # 1米内的点
+                    # 侧面角度范围更大
+                    if math.pi/6 <= angle_diff <= 5*math.pi/6:  # 30°-150°范围内的点
+                        filtered_points.append((x, y, 2.0))  # 使用较大权重
+                    else:
+                        # 非侧面的点使用小权重
+                        filtered_points.append((x, y, 0.5))
+                elif dist < max_distance_in_turn:  # 1-1.5米的点
+                    # 只保留严格侧面的点
+                    if math.pi/4 <= angle_diff <= 3*math.pi/4:  # 45°-135°范围内的点
+                        filtered_points.append((x, y, 1.0))  # 使用中等权重
             else:
-                # 直行时更关注前方的障碍物
-                weight = 1.0
+                # 非转弯状态时的常规过滤
+                point_angle = math.atan2(dy, dx)
+                angle_diff = abs(self.normalize_angle(point_angle - movement_direction))
+                
+                # 根据距离和角度调整点的权重
+                if dist > 8.0:  # 8米以外的点使用较小权重
+                    weight = 0.8
+                else:
+                    weight = 1.0
+                    
+                # 前方的点使用较大权重
                 if angle_diff < math.pi/3:  # 前方60度范围
-                    weight = 1.2
+                    weight *= 1.2
+                
                 filtered_points.append((x, y, weight))
         
         # 记录过滤后剩余的点数

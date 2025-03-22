@@ -1,0 +1,24 @@
+[14.103s] Invoking command in '/IntelligentMobileRobots2025/work3/build/lms_mapper': PYTHONPATH=/IntelligentMobileRobots2025/work3/build/lms_mapper/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /IntelligentMobileRobots2025/work3/build/lms_mapper/build --no-deps symlink_data
+[17.456s] running develop
+[18.337s] running egg_info
+[18.337s] creating lms_mapper.egg-info
+[18.337s] writing lms_mapper.egg-info/PKG-INFO
+[18.337s] writing dependency_links to lms_mapper.egg-info/dependency_links.txt
+[18.337s] writing entry points to lms_mapper.egg-info/entry_points.txt
+[18.337s] writing requirements to lms_mapper.egg-info/requires.txt
+[18.338s] writing top-level names to lms_mapper.egg-info/top_level.txt
+[18.338s] writing manifest file 'lms_mapper.egg-info/SOURCES.txt'
+[18.373s] reading manifest file 'lms_mapper.egg-info/SOURCES.txt'
+[18.373s] writing manifest file 'lms_mapper.egg-info/SOURCES.txt'
+[18.373s] running build_ext
+[18.373s] Creating /IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages/lms-mapper.egg-link (link to .)
+[18.373s] Installing lms_mapper_node script to /IntelligentMobileRobots2025/work3/install/lms_mapper/bin
+[18.373s] 
+[18.373s] Installed /IntelligentMobileRobots2025/work3/build/lms_mapper
+[18.404s] running symlink_data
+[18.404s] creating /IntelligentMobileRobots2025/work3/install/lms_mapper/share/ament_index
+[18.404s] creating /IntelligentMobileRobots2025/work3/install/lms_mapper/share/ament_index/resource_index
+[18.404s] creating /IntelligentMobileRobots2025/work3/install/lms_mapper/share/ament_index/resource_index/packages
+[18.404s] symbolically linking /IntelligentMobileRobots2025/work3/build/lms_mapper/resource/lms_mapper -> /IntelligentMobileRobots2025/work3/install/lms_mapper/share/ament_index/resource_index/packages
+[18.405s] symbolically linking /IntelligentMobileRobots2025/work3/build/lms_mapper/package.xml -> /IntelligentMobileRobots2025/work3/install/lms_mapper/share/lms_mapper
+[18.765s] Invoked command in '/IntelligentMobileRobots2025/work3/build/lms_mapper' returned '0': PYTHONPATH=/IntelligentMobileRobots2025/work3/build/lms_mapper/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/IntelligentMobileRobots2025/work3/install/lms_mapper/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /IntelligentMobileRobots2025/work3/build/lms_mapper/build --no-deps symlink_data

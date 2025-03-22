@@ -373,7 +373,7 @@ if ps -p $MAPPER_PID > /dev/null; then
             echo "✅ 节点已正常关闭"
             break
         fi
-        echo "等待节点关闭... ($i/60)"
+        echo "等待节点关闭... ($i/600)"
         sleep 1
         
         # 每10秒检查一次地图是否已生成

@@ -1,0 +1,22 @@
+running develop
+running egg_info
+creating lms_data.egg-info
+writing lms_data.egg-info/PKG-INFO
+writing dependency_links to lms_data.egg-info/dependency_links.txt
+writing entry points to lms_data.egg-info/entry_points.txt
+writing requirements to lms_data.egg-info/requires.txt
+writing top-level names to lms_data.egg-info/top_level.txt
+writing manifest file 'lms_data.egg-info/SOURCES.txt'
+reading manifest file 'lms_data.egg-info/SOURCES.txt'
+writing manifest file 'lms_data.egg-info/SOURCES.txt'
+running build_ext
+Creating /IntelligentMobileRobots2025/work3/install/lms_data/lib/python3.10/site-packages/lms-data.egg-link (link to .)
+Installing lms_to_rosbag script to /IntelligentMobileRobots2025/work3/install/lms_data/bin
+
+Installed /IntelligentMobileRobots2025/work3/build/lms_data
+running symlink_data
+creating /IntelligentMobileRobots2025/work3/install/lms_data/share/ament_index
+creating /IntelligentMobileRobots2025/work3/install/lms_data/share/ament_index/resource_index
+creating /IntelligentMobileRobots2025/work3/install/lms_data/share/ament_index/resource_index/packages
+symbolically linking /IntelligentMobileRobots2025/work3/build/lms_data/resource/lms_data -> /IntelligentMobileRobots2025/work3/install/lms_data/share/ament_index/resource_index/packages
+symbolically linking /IntelligentMobileRobots2025/work3/build/lms_data/package.xml -> /IntelligentMobileRobots2025/work3/install/lms_data/share/lms_data
