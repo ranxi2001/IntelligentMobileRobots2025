@@ -190,22 +190,143 @@ else
     exit 1
 fi
 
+# 功能：检查节点状态和资源使用情况
+function check_node_status {
+    local pid=$1
+    echo "检查节点状态 (PID: $pid)..."
+    
+    if ! ps -p $pid > /dev/null; then
+        echo "节点已停止运行"
+        return 1
+    fi
+    
+    echo "节点运行状态:"
+    ps -o pid,ppid,cmd,%cpu,%mem,rss,vsz -p $pid
+    
+    # 检查内存使用情况
+    echo "系统内存使用情况:"
+    free -h
+    
+    # 检查节点占用的文件描述符
+    echo "节点打开的文件描述符数:"
+    ls -l /proc/$pid/fd 2>/dev/null | wc -l
+    
+    # 检查节点的内存映射
+    echo "节点内存映射摘要:"
+    head -n 5 /proc/$pid/maps 2>/dev/null || echo "无法读取内存映射"
+    
+    # 检查系统负载
+    echo "系统负载:"
+    uptime
+    
+    return 0
+}
+
 # 等待处理完成（给足够时间保存地图）
 echo "等待处理完成..."
-sleep 90  # 增加等待时间，确保有足够时间处理所有数据
+# 增加等待时间，确保有足够时间处理所有数据和保存最终地图
+sleep 240
+
+# 在关闭节点前检查其状态
+check_node_status $MAPPER_PID
+
+# 检查地图文件是否已经生成
+if [ -f "${MAP_PATH}" ]; then
+    echo "✅ 检测到地图已经生成: ${MAP_PATH}"
+    MAP_GENERATED=true
+else
+    echo "⚠️ 地图尚未生成，给节点更多时间完成处理..."
+    MAP_GENERATED=false
+    # 再多等待60秒
+    sleep 60
+    # 再次检查节点状态
+    check_node_status $MAPPER_PID
+fi
 
 # 检查节点是否仍在运行
 if ps -p $MAPPER_PID > /dev/null; then
+    # 先检查地图是否已经生成
+    MAP_WAIT_ATTEMPT=0
+    MAX_MAP_WAIT_ATTEMPTS=3
+    
+    while [ "$MAP_GENERATED" = false ] && [ $MAP_WAIT_ATTEMPT -lt $MAX_MAP_WAIT_ATTEMPTS ]; do
+        if [ -f "${MAP_PATH}" ]; then
+            echo "✅ 检测到地图已经生成: ${MAP_PATH}"
+            MAP_GENERATED=true
+            break
+        else
+            MAP_WAIT_ATTEMPT=$((MAP_WAIT_ATTEMPT+1))
+            echo "⚠️ 等待地图生成，尝试 $MAP_WAIT_ATTEMPT/$MAX_MAP_WAIT_ATTEMPTS..."
+            check_node_status $MAPPER_PID
+            # 每次再多等待30秒
+            sleep 30
+        fi
+    done
+
     echo "正在关闭节点..."
-    kill -SIGINT $MAPPER_PID || true
-    sleep 5  # 给节点一些时间来正常关闭
-    # 如果节点仍在运行，强制终止
+    
+    # 先尝试优雅地关闭节点
+    echo "发送SIGTERM信号，请求节点优雅关闭..."
+    kill -SIGTERM $MAPPER_PID || true
+    
+    # 等待节点关闭，最多60秒（增加等待时间）
+    for i in {1..60}; do
+        if ! ps -p $MAPPER_PID > /dev/null; then
+            echo "✅ 节点已正常关闭"
+            break
+        fi
+        echo "等待节点关闭... ($i/60)"
+        sleep 1
+        
+        # 每20秒检查一次节点状态和地图
+        if [ $((i % 20)) -eq 0 ]; then
+            check_node_status $MAPPER_PID
+            if [ ! -f "${MAP_PATH}" ]; then
+                echo "⚠️ 地图仍未生成，继续等待节点处理..."
+            else
+                echo "✅ 地图已生成，继续等待节点完成清理工作..."
+            fi
+        fi
+    done
+    
+    # 如果节点仍未关闭，尝试SIGINT信号
     if ps -p $MAPPER_PID > /dev/null; then
-        echo "⚠️ 警告: 节点无法正常关闭，强制终止..."
-        kill -9 $MAPPER_PID || true
+        echo "节点未响应SIGTERM，发送SIGINT信号..."
+        kill -SIGINT $MAPPER_PID || true
+        
+        # 再等待30秒
+        for i in {1..30}; do
+            if ! ps -p $MAPPER_PID > /dev/null; then
+                echo "✅ 节点响应SIGINT信号并已关闭"
+                break
+            fi
+            echo "等待节点响应SIGINT... ($i/30)"
+            sleep 1
+            
+            # 每10秒检查一次状态
+            if [ $((i % 10)) -eq 0 ]; then
+                check_node_status $MAPPER_PID
+            fi
+        done
+    fi
+    
+    # 如果节点仍在运行，最后再检查地图是否已生成
+    if ps -p $MAPPER_PID > /dev/null; then
+        # 最后一次检查地图文件
+        if [ ! -f "${MAP_PATH}" ]; then
+            echo "⚠️ 地图仍未生成，再等待30秒..."
+            check_node_status $MAPPER_PID
+            sleep 30
+        fi
+        
+        # 如果仍需要强制终止
+        if ps -p $MAPPER_PID > /dev/null; then
+            echo "⚠️ 警告: 节点无法正常关闭，强制终止..."
+            kill -9 $MAPPER_PID || true
+        fi
     fi
 else
-    echo "警告: 节点已经停止运行"
+    echo "节点已经停止运行"
 fi
 
 # 步骤3：检查地图文件是否生成

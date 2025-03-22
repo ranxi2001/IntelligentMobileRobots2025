@@ -1,0 +1,10 @@
+======== 运行日志开始 Sat Mar 22 16:20:40 CST 2025 ========
+======== 开始执行作业3 ========
+正在创建ROS2工作空间...
+ROS2工作空间结构创建完成！
+Starting >>> lms_data
+Starting >>> lms_mapper
+Finished <<< lms_mapper [11.6s]
+Finished <<< lms_data [15.8s]
+
+Summary: 2 packages finished [16.2s]

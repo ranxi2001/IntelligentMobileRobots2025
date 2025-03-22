@@ -24,6 +24,13 @@ import time
 from collections import Counter
 import copy
 import matplotlib
+import signal
+try:
+    import scipy.ndimage
+    SCIPY_AVAILABLE = True
+except ImportError:
+    SCIPY_AVAILABLE = False
+    print("警告: scipy模块不可用，将使用备用方法进行地图平滑处理")
 
 # 设置默认字体为通用英文字体
 plt.rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial', 'Helvetica', 'sans-serif']
@@ -445,7 +452,13 @@ class LmsMapperNode(Node):
     """LMS数据处理和栅格地图生成节点"""
     
     def __init__(self):
+        """初始化节点"""
         super().__init__('lms_mapper')
+        
+        # 设置信号处理，捕获关闭信号
+        signal.signal(signal.SIGINT, self._signal_handler)
+        signal.signal(signal.SIGTERM, self._signal_handler)
+        self.shutdown_requested = False
         
         # 地图参数
         self.resolution = 0.1  # 每格代表0.1米
@@ -471,6 +484,11 @@ class LmsMapperNode(Node):
         self.declare_parameter('adaptive_threshold', True)  # 保持启用自适应阈值
         self.declare_parameter('base_threshold', 2)  # 降低基础阈值，使转弯处显示更多障碍点
         self.declare_parameter('distance_threshold_factor', 0.5)  # 降低距离因子，远处障碍物也能更好地被检测
+        self.declare_parameter('turn_detection_threshold', 0.05)  # 转弯检测角度阈值(弧度)
+        self.declare_parameter('turn_threshold_factor', 0.7)  # 转弯时阈值降低系数
+        self.declare_parameter('turn_filter_window', 3)  # 转弯时滤波窗口大小
+        self.declare_parameter('smooth_map_enabled', True)  # 是否启用地图平滑
+        self.declare_parameter('direction_filter_enabled', True)  # 是否启用方向过滤
         
         # 获取参数
         self.threshold = self.get_parameter('map_threshold').value
@@ -487,6 +505,11 @@ class LmsMapperNode(Node):
         self.base_threshold = self.get_parameter('base_threshold').value
         self.distance_threshold_factor = self.get_parameter('distance_threshold_factor').value
         self.max_obstacle_age = self.get_parameter('max_obstacle_age').value  # 从参数获取障碍物最大存活时间
+        self.turn_detection_threshold = self.get_parameter('turn_detection_threshold').get_parameter_value().double_value
+        self.turn_threshold_factor = self.get_parameter('turn_threshold_factor').get_parameter_value().double_value
+        self.turn_filter_window = self.get_parameter('turn_filter_window').get_parameter_value().integer_value
+        self.smooth_map_enabled = self.get_parameter('smooth_map_enabled').get_parameter_value().bool_value
+        self.direction_filter_enabled = self.get_parameter('direction_filter_enabled').get_parameter_value().bool_value
         
         # 输出地图参数信息
         self.get_logger().info(f'地图参数: 尺寸={self.size_x}x{self.size_y}, 分辨率={self.resolution}米/格')
@@ -597,7 +620,44 @@ class LmsMapperNode(Node):
         # 添加进度更新和中间结果保存定时器
         self.progress_timer = self.create_timer(5.0, self.update_progress)  # 每5秒更新一次进度
         
+        # 转弯状态相关变量
+        self.is_turning = False
+        self.last_theta = 0.0
+        self.turning_history = []  # 记录最近的角度变化
+        self.turning_history_max_len = 5
+        
         self.get_logger().info('LMS mapper node已启动')
+    
+    def _signal_handler(self, sig, frame):
+        """处理SIGINT和SIGTERM信号，确保安全关闭"""
+        signal_name = "SIGINT" if sig == signal.SIGINT else "SIGTERM"
+        self.get_logger().info(f'收到{signal_name}信号，准备安全关闭节点...')
+        self.shutdown_requested = True
+        
+        # 保存地图
+        try:
+            self.get_logger().info('正在保存最终地图...')
+            self.save_map()
+            self.get_logger().info('最终地图保存完成')
+        except Exception as e:
+            self.get_logger().error(f'保存地图时出错: {str(e)}')
+        
+        # 不立即退出，让ROS2正常关闭
+        self.get_logger().info('节点关闭准备完成，等待ROS2清理...')
+    
+    def shutdown(self):
+        """安全关闭节点"""
+        if not self.shutdown_requested:
+            self.get_logger().info('执行安全关闭程序...')
+            # 保存最终状态
+            try:
+                self.save_map()
+                self.get_logger().info('已保存最终地图')
+            except Exception as e:
+                self.get_logger().error(f'关闭时保存地图失败: {str(e)}')
+                
+            # 关闭所有订阅和发布者
+            self.get_logger().info('清理资源...')
     
     def odom_callback(self, msg):
         """处理里程计消息，获取机器人位姿"""
@@ -625,6 +685,9 @@ class LmsMapperNode(Node):
         x = position.x
         y = position.y
         theta = euler[2]  # 取偏航角 (yaw)
+        
+        # 检测转弯状态
+        self.detect_turning(theta)
         
         # 保存或更新机器人位姿
         self.latest_pose = {
@@ -918,10 +981,12 @@ class LmsMapperNode(Node):
             robot_x = self.latest_pose['x'] if self.latest_pose else 0.0
             robot_y = self.latest_pose['y'] if self.latest_pose else 0.0
             robot_theta = self.latest_pose['theta'] if self.latest_pose else 0.0
+            robot_pose = (robot_x, robot_y, robot_theta)
             
-            # 记录机器人当前位置作为调试信息
+            # 记录转弯状态
             if hasattr(self, '_map_stats_count') and self._map_stats_count % 50 == 0:
-                self.get_logger().info(f'【障碍物计算】机器人位置: x={robot_x:.2f}, y={robot_y:.2f}, theta={robot_theta:.2f}')
+                turning_status = "正在转弯" if self.is_turning else "直线行驶"
+                self.get_logger().info(f'【障碍物计算】机器人位置: x={robot_x:.2f}, y={robot_y:.2f}, theta={robot_theta:.2f}, 状态: {turning_status}')
             
             # 计算点与机器人的距离 - 用于优先处理近距离障碍物和自适应阈值
             def calculate_distance_to_robot(point):
@@ -933,70 +998,129 @@ class LmsMapperNode(Node):
             
             # 对于批量点，优化处理方式
             if isinstance(points, np.ndarray) and points.ndim == 2 and points.shape[1] == 2:
-                # 使用向量化操作计算所有点到机器人的距离
-                dx = points[:, 0] - robot_x
-                dy = points[:, 1] - robot_y
-                distances = np.sqrt(dx*dx + dy*dy)
+                # 应用方向感知滤波，减少转弯时的歪斜障碍物
+                weighted_points = self.filter_points_with_direction(points, robot_pose)
                 
-                # 记录调试信息
-                if len(points) > 100 and hasattr(self, '_map_stats_count') and self._map_stats_count % 50 == 0:
-                    # 找出最近的几个点，记录到日志
-                    closest_indices = np.argsort(distances)[:5]
-                    closest_points = points[closest_indices]
-                    closest_distances = distances[closest_indices]
+                # 如果是标准点集不含权重，则处理原始点集
+                if len(weighted_points) == 0 or len(weighted_points[0]) == 2:
+                    # 使用向量化操作计算所有点到机器人的距离
+                    dx = points[:, 0] - robot_x
+                    dy = points[:, 1] - robot_y
+                    distances = np.sqrt(dx*dx + dy*dy)
                     
-                    # 记录最近的障碍物
-                    self.get_logger().info(f'【最近障碍物】距离机器人: {", ".join([f"({p[0]:.2f},{p[1]:.2f})={d:.2f}m" for p,d in zip(closest_points, closest_distances)])}')
-                
-                # 处理每个世界点
-                for i in range(len(points)):
-                    x, y = points[i]
-                    distance = distances[i]
+                    # 记录调试信息
+                    if len(points) > 100 and hasattr(self, '_map_stats_count') and self._map_stats_count % 50 == 0:
+                        # 找出最近的几个点，记录到日志
+                        closest_indices = np.argsort(distances)[:5]
+                        closest_points = points[closest_indices]
+                        closest_distances = distances[closest_indices]
+                        
+                        # 记录最近的障碍物
+                        self.get_logger().info(f'【最近障碍物】距离机器人: {", ".join([f"({p[0]:.2f},{p[1]:.2f})={d:.2f}m" for p,d in zip(closest_points, closest_distances)])}')
                     
-                    # 将世界坐标转换为栅格坐标
-                    grid_x, grid_y = self.world_to_grid(x, y)
-                    
-                    # 确保栅格坐标在地图范围内
-                    if 0 <= grid_x < self.size_x and 0 <= grid_y < self.size_y:
-                        # 检查是否使用自适应阈值
-                        if self.adaptive_threshold:
-                            # 根据距离计算局部阈值 - 远处使用更高阈值，减少噪声
-                            local_threshold = self.base_threshold
-                            
-                            # 修改自适应阈值计算：对转弯处障碍物进行特殊处理
-                            if distance > 5.0:  # 5米以外的点
-                                # 距离因子影响较小，使远处障碍物更容易被检测到
-                                local_threshold += distance * self.distance_threshold_factor * 0.5
+                    # 处理每个世界点
+                    for i in range(len(points)):
+                        x, y = points[i]
+                        distance = distances[i]
+                        
+                        # 将世界坐标转换为栅格坐标
+                        grid_x, grid_y = self.world_to_grid(x, y)
+                        
+                        # 确保栅格坐标在地图范围内
+                        if 0 <= grid_x < self.size_x and 0 <= grid_y < self.size_y:
+                            # 检查是否使用自适应阈值
+                            if self.adaptive_threshold:
+                                # 根据距离计算局部阈值 - 远处使用更高阈值，减少噪声
+                                local_threshold = self.base_threshold
+                                
+                                # 修改自适应阈值计算：对转弯处障碍物进行特殊处理
+                                if distance > 5.0:  # 5米以外的点
+                                    # 距离因子影响较小，使远处障碍物更容易被检测到
+                                    local_threshold += distance * self.distance_threshold_factor * 0.5
+                                else:
+                                    # 近处障碍物使用更低的阈值
+                                    local_threshold = max(1, self.base_threshold - 1)
+                                
+                                # 确保阈值合理
+                                local_threshold = max(1, local_threshold)
                             else:
-                                # 近处障碍物使用更低的阈值
-                                local_threshold = max(1, self.base_threshold - 1)
+                                # 不使用自适应阈值时使用固定阈值
+                                local_threshold = self.threshold
                             
-                            # 确保阈值合理
-                            local_threshold = max(1, local_threshold)
-                        else:
-                            # 不使用自适应阈值时使用固定阈值
-                            local_threshold = self.threshold
-                        
-                        # 累积计数
-                        key = (grid_x, grid_y)
-                        self.occupancy_count[key] = self.occupancy_count.get(key, 0) + 1
-                        
-                        # 记录时间戳，虽然不再使用清除功能，但保留此代码以保持兼容性
-                        self.obstacle_timestamps[key] = current_time
-                        
-                        # 更新栅格状态 - 当累积计数超过阈值时标记为障碍物
-                        # 注意：转弯处等重要区域使用更低的阈值
-                        if self.occupancy_count[key] > local_threshold:
-                            if self.grid_map[grid_x, grid_y] == 0:  # 只有当格子状态改变时才计数
-                                points_added += 1
-                            self.grid_map[grid_x, grid_y] = 1
+                            # 累积计数
+                            key = (grid_x, grid_y)
+                            self.occupancy_count[key] = self.occupancy_count.get(key, 0) + 1
+                            
+                            # 记录时间戳，虽然不再使用清除功能，但保留此代码以保持兼容性
+                            self.obstacle_timestamps[key] = current_time
+                            
+                            # 更新栅格状态 - 当累积计数超过阈值时标记为障碍物
+                            # 注意：转弯处等重要区域使用更低的阈值
+                            if self.occupancy_count[key] > local_threshold:
+                                if self.grid_map[grid_x, grid_y] == 0:  # 只有当格子状态改变时才计数
+                                    points_added += 1
+                                self.grid_map[grid_x, grid_y] = 1
                 
-                # 更新地图边界 - 用于优化显示
-                if points_added > 0:
-                    self.min_x = min(self.min_x, np.min(points[:, 0]))
-                    self.max_x = max(self.max_x, np.max(points[:, 0]))
-                    self.min_y = min(self.min_y, np.min(points[:, 1]))
-                    self.max_y = max(self.max_y, np.max(points[:, 1]))
+                else:
+                    # 处理带权重的点
+                    for point_data in weighted_points:
+                        x, y, weight = point_data
+                        
+                        # 计算到机器人的距离
+                        dx = x - robot_x
+                        dy = y - robot_y
+                        distance = math.sqrt(dx*dx + dy*dy)
+                        
+                        # 将世界坐标转换为栅格坐标
+                        grid_x, grid_y = self.world_to_grid(x, y)
+                        
+                        # 确保栅格坐标在地图范围内
+                        if 0 <= grid_x < self.size_x and 0 <= grid_y < self.size_y:
+                            # 检查是否使用自适应阈值
+                            if self.adaptive_threshold:
+                                # 根据距离和转弯状态计算局部阈值
+                                local_threshold = self.base_threshold
+                                
+                                # 转弯时使用更低的阈值，更容易标记障碍物
+                                if self.is_turning:
+                                    local_threshold *= self.turn_threshold_factor
+                                
+                                # 距离自适应
+                                if distance > 5.0:  # 5米以外的点
+                                    # 距离因子影响
+                                    local_threshold += distance * self.distance_threshold_factor * 0.5
+                                else:
+                                    # 近处障碍物使用更低的阈值
+                                    local_threshold = max(1, self.base_threshold - 1)
+                                
+                                # 确保阈值合理
+                                local_threshold = max(1, local_threshold)
+                            else:
+                                # 不使用自适应阈值时，转弯状态下仍降低阈值
+                                local_threshold = self.threshold
+                                if self.is_turning:
+                                    local_threshold *= self.turn_threshold_factor
+                            
+                            # 累积计数，应用点权重
+                            key = (grid_x, grid_y)
+                            increment = weight  # 使用点的权重作为增量
+                            self.occupancy_count[key] = self.occupancy_count.get(key, 0) + increment
+                            
+                            # 记录时间戳
+                            self.obstacle_timestamps[key] = current_time
+                            
+                            # 更新栅格状态 - 当累积计数超过阈值时标记为障碍物
+                            if self.occupancy_count[key] > local_threshold:
+                                if self.grid_map[grid_x, grid_y] == 0:  # 只有当格子状态改变时才计数
+                                    points_added += 1
+                                self.grid_map[grid_x, grid_y] = 1
+            
+            # 更新地图边界 - 用于优化显示
+            if points_added > 0:
+                self.min_x = min(self.min_x, np.min(points[:, 0]))
+                self.max_x = max(self.max_x, np.max(points[:, 0]))
+                self.min_y = min(self.min_y, np.min(points[:, 1]))
+                self.max_y = max(self.max_y, np.max(points[:, 1]))
             
             # 清除过期的障碍物 - 仅在启用该功能时执行
             # 注意：我们改为条件检查，如果功能被禁用，就跳过这一步
@@ -1021,6 +1145,10 @@ class LmsMapperNode(Node):
                 obstacle_count = len(self.obstacle_x)
                 if obstacle_count > 0:
                     self.get_logger().info(f'已记录{obstacle_count}个原始障碍物点坐标，用于最终地图生成')
+            
+            # 在特定条件下进行地图平滑处理，减少转弯处的不连续性
+            if self.smooth_map_enabled and self._map_stats_count % 50 == 0 and np.sum(self.grid_map) > 100:
+                self.smooth_map()
         
         except Exception as e:
             # 捕获所有异常，防止崩溃
@@ -1667,143 +1795,227 @@ class LmsMapperNode(Node):
         if len(expired_keys) > 10:  # 只有当清除较多点时才记录
             self.get_logger().info(f'已清除{len(expired_keys)}个过期障碍物')
 
+    def smooth_map(self):
+        """对地图进行平滑处理，减少转弯处的不连续性"""
+        try:
+            # 如果scipy不可用，使用简单的卷积滤波
+            if not SCIPY_AVAILABLE:
+                self.smooth_map_simple()
+                return
+                
+            # 如果转弯状态下，使用更大的平滑窗口
+            kernel_size = self.turn_filter_window
+            if self.is_turning:
+                kernel_size += 1
+            
+            # 使用scipy的高斯滤波器对障碍物部分进行平滑
+            # 仅对有障碍物的区域进行平滑，防止引入幻影障碍物
+            obstacle_map = (self.grid_map > 0).astype(np.float32)
+            smoothed = scipy.ndimage.gaussian_filter(obstacle_map, sigma=0.8, truncate=1.5)
+            
+            # 应用平滑结果，保持原有障碍物，减少孤立点
+            threshold = 0.3  # 平滑后的阈值
+            for x in range(self.size_x):
+                for y in range(self.size_y):
+                    # 如果原来是障碍物，周围没有足够支持，则降级为可能障碍物
+                    if self.grid_map[x, y] > 0 and smoothed[x, y] < threshold:
+                        # 检查是否是孤立点
+                        is_isolated = True
+                        for dx in [-1, 0, 1]:
+                            for dy in [-1, 0, 1]:
+                                nx, ny = x + dx, y + dy
+                                if 0 <= nx < self.size_x and 0 <= ny < self.size_y and (dx != 0 or dy != 0):
+                                    if self.grid_map[nx, ny] > 0:
+                                        is_isolated = False
+                                        break
+                            if not is_isolated:
+                                break
+                        
+                        if is_isolated:
+                            # 孤立点降级
+                            self.grid_map[x, y] = 0
+                    
+                    # 如果原来不是障碍物，但周围有很多障碍物支持，则标记为障碍物
+                    elif self.grid_map[x, y] == 0 and smoothed[x, y] > 0.7:
+                        # 转弯时更容易填充空隙
+                        if self.is_turning or self.count_neighbor_obstacles(x, y) >= 5:
+                            self.grid_map[x, y] = 1
+        
+        except Exception as e:
+            self.get_logger().warning(f'地图平滑过程中出错: {str(e)}')
+    
+    def smooth_map_simple(self):
+        """使用简单的邻域平均进行地图平滑处理（scipy不可用时的备用方法）"""
+        try:
+            # 创建临时地图副本
+            temp_map = np.copy(self.grid_map)
+            
+            # 遍历地图每个点
+            for x in range(1, self.size_x - 1):
+                for y in range(1, self.size_y - 1):
+                    # 计算3x3邻域中障碍物数量
+                    obstacle_count = 0
+                    for dx in [-1, 0, 1]:
+                        for dy in [-1, 0, 1]:
+                            if self.grid_map[x + dx, y + dy] > 0:
+                                obstacle_count += 1
+                    
+                    # 根据邻域障碍物数量调整当前点状态
+                    if obstacle_count >= 5 and self.grid_map[x, y] == 0:
+                        # 如果周围大部分是障碍物，但当前点不是，则填充
+                        if self.is_turning or obstacle_count >= 6:
+                            temp_map[x, y] = 1
+                    elif obstacle_count <= 2 and self.grid_map[x, y] > 0:
+                        # 如果是孤立障碍物点，则移除
+                        temp_map[x, y] = 0
+            
+            # 应用平滑结果
+            self.grid_map = temp_map
+            
+            self.get_logger().debug("使用简单平滑方法处理地图完成")
+        
+        except Exception as e:
+            self.get_logger().warning(f'简单地图平滑过程中出错: {str(e)}')
+
+    def count_neighbor_obstacles(self, x, y):
+        """计算指定位置周围的障碍物数量"""
+        count = 0
+        for dx in [-1, 0, 1]:
+            for dy in [-1, 0, 1]:
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < self.size_x and 0 <= ny < self.size_y and (dx != 0 or dy != 0):
+                    if self.grid_map[nx, ny] > 0:
+                        count += 1
+        return count
+
+    def detect_turning(self, current_theta):
+        """检测机器人是否正在转弯"""
+        if hasattr(self, 'last_theta'):
+            # 计算角度差，处理角度环绕
+            angle_diff = self.normalize_angle(current_theta - self.last_theta)
+            
+            # 记录角度变化历史
+            self.turning_history.append(abs(angle_diff))
+            if len(self.turning_history) > self.turning_history_max_len:
+                self.turning_history.pop(0)
+            
+            # 如果最近几次角度变化的平均值超过阈值，认为正在转弯
+            avg_angle_change = sum(self.turning_history) / len(self.turning_history)
+            was_turning = self.is_turning
+            self.is_turning = avg_angle_change > self.turn_detection_threshold
+            
+            # 转弯状态改变时记录日志
+            if was_turning != self.is_turning:
+                if self.is_turning:
+                    self.get_logger().info(f'检测到机器人开始转弯，角度变化率: {avg_angle_change:.4f} rad/s')
+                else:
+                    self.get_logger().info(f'机器人转弯结束，角度变化率降低到: {avg_angle_change:.4f} rad/s')
+        
+        # 更新上一次的角度
+        self.last_theta = current_theta
+    
+    def normalize_angle(self, angle):
+        """将角度标准化到[-pi, pi]区间"""
+        while angle > math.pi:
+            angle -= 2.0 * math.pi
+        while angle < -math.pi:
+            angle += 2.0 * math.pi
+        return angle
+
+    def filter_points_with_direction(self, points, robot_pose):
+        """基于机器人运动方向进行点云过滤，减少转弯时的歪斜障碍物"""
+        if not self.direction_filter_enabled or len(points) == 0:
+            return points
+        
+        filtered_points = []
+        robot_x, robot_y, robot_theta = robot_pose
+        
+        # 计算机器人当前的运动方向
+        movement_direction = robot_theta
+        if len(self.robot_trajectory) > 1:
+            prev_pose = self.robot_trajectory[-2]
+            # 如果有实际移动，使用移动方向；否则使用机器人朝向
+            dx = robot_x - prev_pose[0]
+            dy = robot_y - prev_pose[1]
+            if abs(dx) > 0.01 or abs(dy) > 0.01:  # 有明显移动
+                movement_direction = math.atan2(dy, dx)
+        
+        # 根据运动方向过滤点
+        for point in points:
+            x, y = point
+            
+            # 计算点相对于机器人的方向
+            dx = x - robot_x
+            dy = y - robot_y
+            dist = math.sqrt(dx*dx + dy*dy)
+            
+            if dist < 0.001:  # 避免除零错误
+                continue
+                
+            point_angle = math.atan2(dy, dx)
+            
+            # 计算点的方向与运动方向的夹角
+            angle_diff = abs(self.normalize_angle(point_angle - movement_direction))
+            
+            # 转弯时使用不同的过滤策略
+            if self.is_turning:
+                # 转弯时更关注侧面的障碍物
+                weight = 1.0
+                if angle_diff < math.pi/4:  # 前方45度范围
+                    weight = 1.2  # 增强前方障碍物权重
+                elif math.pi/4 <= angle_diff < 3*math.pi/4:  # 侧面90度范围
+                    weight = 1.5  # 大幅增强侧面障碍物权重，这是转弯时最关键的部分
+                filtered_points.append((x, y, weight))
+            else:
+                # 直行时更关注前方的障碍物
+                weight = 1.0
+                if angle_diff < math.pi/3:  # 前方60度范围
+                    weight = 1.2
+                filtered_points.append((x, y, weight))
+        
+        return filtered_points
+
 
 def main(args=None):
+    """主函数"""
     try:
+        # 初始化ROS2
         rclpy.init(args=args)
         
         # 创建节点
         node = LmsMapperNode()
-        node.get_logger().info('LMS mapper node已启动，等待数据...')
+        
+        # 记录开始时间
+        start_time = time.time()
         
         try:
-            # 记录开始时间
-            start_time = time.time()
-            
-            # 主动处理一段时间的消息
-            timeout = 0
-            max_timeout = 600  # 增加最大等待时间到10分钟
-            
-            while rclpy.ok() and timeout < max_timeout:
-                try:
-                    # 将超时时间从1.0秒减少到0.1秒，加快处理速度
-                    rclpy.spin_once(node, timeout_sec=0.05)  # 进一步减少延迟
-                    
-                    # 检查是否已接收到数据
-                    if len(node.robot_trajectory) > 0:
-                        # 减少日志频率，避免过多I/O操作
-                        if len(node.robot_trajectory) % 100 == 0:  # 从50改为100
-                            node.get_logger().info(f'已接收轨迹点: {len(node.robot_trajectory)}')
-                        if timeout == 0:
-                            node.get_logger().info('开始接收数据，继续处理...')
-                    else:
-                        timeout += 1
-                        if timeout % 20 == 0:  # 从10秒改为20秒提示一次
-                            node.get_logger().warn(f'等待数据中... {timeout}/{max_timeout}秒')
-                except KeyboardInterrupt:
-                    raise  # 重新抛出键盘中断异常
-                except Exception as e:
-                    node.get_logger().error(f'处理消息时出错: {str(e)}')
-                    # 继续运行，不中断
-            
-            # 主循环处理
-            if timeout < max_timeout:
-                node.get_logger().info('进入主处理循环')
-                # 设置循环安全标志
-                last_error_time = None
-                error_count = 0
-                
-                # 设置处理超时
-                processing_timeout = 300  # 默认5分钟
-                processing_start_time = time.time()
-                
-                while rclpy.ok():
-                    try:
-                        # 检查是否超时
-                        current_time = time.time()
-                        if current_time - processing_start_time > processing_timeout:
-                            node.get_logger().warn(f'处理时间已超过{processing_timeout}秒，尝试保存当前结果并退出...')
-                            break
-                            
-                        # 使用较小的timeout_sec值，加快处理速度
-                        rclpy.spin_once(node, timeout_sec=0.01)
-                    except KeyboardInterrupt:
-                        node.get_logger().info('用户中断，退出...')
-                        break
-                    except Exception as e:
-                        # 错误频率控制，防止日志刷屏
-                        current_time = time.time()
-                        if last_error_time is None or (current_time - last_error_time) > 5.0:
-                            node.get_logger().error(f'主循环处理出错: {str(e)}')
-                            last_error_time = current_time
-                            error_count = 1
-                        else:
-                            error_count += 1
-                            if error_count % 100 == 0:  # 从50个改为100个错误才记录一次
-                                node.get_logger().error(f'持续出错 ({error_count}次)')
-                        
-                        # 将暂停时间从0.1秒减少到0.01秒，大幅减少等待时间
-                        time.sleep(0.01)
-            else:
-                node.get_logger().error('超时未接收到数据，退出')
-        
+            # 进入ROS2主循环
+            rclpy.spin(node)
         except KeyboardInterrupt:
-            node.get_logger().info('用户中断，退出')
+            node.get_logger().info('用户中断，正在关闭...')
         except Exception as e:
-            node.get_logger().error(f'发生错误: {str(e)}')
+            node.get_logger().error(f'处理消息时出错: {str(e)}')
             import traceback
             node.get_logger().error(traceback.format_exc())
         finally:
+            # 确保在关闭前执行清理操作
+            node.get_logger().info('进入主处理循环')
+            
             try:
-                # 保存最终地图
+                # 安全关闭节点
+                node.shutdown()
+                
+                # 保存当前结果，无论处理是否完整
                 node.get_logger().info('保存地图...')
+                node.save_map()
                 
-                try:
-                    # 保存当前结果，无论处理是否完整
-                    node.save_map()
-                    
-                    # 计算总运行时间
-                    total_runtime = time.time() - start_time
-                    node.get_logger().info(f'总运行时间: {total_runtime:.1f}秒')
-                    
-                    # 打印处理统计
-                    node.get_logger().info(f'保存最终地图到 {node.map_save_path}')
-                    node.get_logger().info(f'处理统计: 扫描帧={node.processed_scans}, 处理点={node.processed_points}')
-                except Exception as save_err:
-                    node.get_logger().error(f'保存地图时出错: {str(save_err)}')
-                    try:
-                        # 尝试保存到备用位置
-                        backup_path = '/tmp/emergency_map.png'
-                        plt.figure(figsize=(10, 10))
-                        plt.title('Emergency Map (Auto-saved due to error)')
-                        plt.imshow(node.grid_map.T, cmap='binary', origin='lower')
-                        plt.savefig(backup_path)
-                        plt.close()
-                        node.get_logger().info(f'Emergency map saved to: {backup_path}')
-                    except:
-                        node.get_logger().error('Cannot save map to any location')
+                # 计算总运行时间
+                total_runtime = time.time() - start_time
+                node.get_logger().info(f'总运行时间: {total_runtime:.1f}秒')
                 
-                # 打印最终统计信息
-                total_obstacle_cells = np.sum(node.grid_map == 1)
-                node.get_logger().info(f'最终地图统计: 轨迹点={len(node.robot_trajectory)}, 障碍物单元格={total_obstacle_cells}')
-                if len(node.robot_trajectory) > 0:
-                    node.get_logger().info(f'轨迹起点: ({node.robot_trajectory[0][0]:.2f}, {node.robot_trajectory[0][1]:.2f})')
-                    node.get_logger().info(f'轨迹终点: ({node.robot_trajectory[-1][0]:.2f}, {node.robot_trajectory[-1][1]:.2f})')
-                    
-                # 打印结果摘要
-                node.get_logger().info('结果摘要:')
-                node.get_logger().info(f'  - 总运行时间: {total_runtime:.1f}秒')
-                node.get_logger().info(f'  - 处理点云: {node.processed_points}个点')
-                node.get_logger().info(f'  - 轨迹点数: {len(node.robot_trajectory)}个')
-                node.get_logger().info(f'  - 障碍物单元格: {total_obstacle_cells}个')
-                node.get_logger().info(f'  - 地图边界: [{node.min_x:.1f}, {node.max_x:.1f}]x[{node.min_y:.1f}, {node.max_y:.1f}]')
-                node.get_logger().info(f'  - 地图保存路径: {node.map_save_path}')
-                
-                # 如果有中间检查点，显示它们的位置
-                if hasattr(node, 'checkpoint_counter') and node.checkpoint_counter > 0:
-                    node.get_logger().info(f'  - 中间检查点: {node.checkpoint_counter}个')
-                    for i in range(1, node.checkpoint_counter + 1):
-                        node.get_logger().info(f'    * 检查点 {i}: map_checkpoint_{i}.png')
+                # 打印处理统计
+                node.get_logger().info(f'保存最终地图到 {node.map_save_path}')
+                node.get_logger().info(f'处理统计: 扫描帧={node.processed_scans}, 处理点={node.processed_points}')
             except Exception as final_err:
                 node.get_logger().error(f'结束清理时出错: {str(final_err)}')
             finally:

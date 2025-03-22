@@ -134,7 +134,108 @@ plt.rcParams['axes.unicode_minus'] = False    # 用来正常显示负号
 
 这些修改确保了生成的可视化图像能够正确显示英文标题和标签，提高了代码的国际化水平，同时保留了日志输出和代码注释中的中文信息，以便于中文环境下的开发和调试。
 
-## 8. ROS2相关技术应用
+## 8. 转弯优化与地图质量提升
+
+针对小车在转弯场景下地图生成质量不佳的问题，我们进行了针对性的优化。主要问题表现为：在小车转弯时，生成的障碍物点呈现歪斜状态，地图连接不流畅，墙壁轮廓不连续。
+
+### 8.1 转弯场景的特殊处理
+
+1. **转弯检测机制**
+   - 实现了基于角速度的转弯检测算法，通过计算机器人方向角的变化率来判断是否处于转弯状态
+   - 使用滑动窗口平均角速度，防止瞬时角度变化导致误判
+   - 在转弯状态下应用特殊的地图生成策略
+
+```python
+def detect_turning(self, current_theta):
+    """检测机器人是否正在转弯"""
+    if hasattr(self, 'last_theta'):
+        # 计算角度差，处理角度环绕
+        angle_diff = self.normalize_angle(current_theta - self.last_theta)
+        
+        # 记录角度变化历史
+        self.turning_history.append(abs(angle_diff))
+        if len(self.turning_history) > self.turning_history_max_len:
+            self.turning_history.pop(0)
+        
+        # 如果最近几次角度变化的平均值超过阈值，认为正在转弯
+        avg_angle_change = sum(self.turning_history) / len(self.turning_history)
+        self.is_turning = avg_angle_change > self.turn_detection_threshold
+```
+
+2. **方向感知的点云过滤**
+   - 根据机器人的运动方向和障碍物的相对位置，对激光点进行加权处理
+   - 转弯时提高侧面障碍物的权重，直行时提高前方障碍物的权重
+   - 通过这种方式使地图生成更符合实际环境布局
+
+```python
+def filter_points_with_direction(self, points, robot_pose):
+    # ...
+    # 转弯时使用不同的过滤策略
+    if self.is_turning:
+        # 转弯时更关注侧面的障碍物
+        weight = 1.0
+        if angle_diff < math.pi/4:  # 前方45度范围
+            weight = 1.2  # 增强前方障碍物权重
+        elif math.pi/4 <= angle_diff < 3*math.pi/4:  # 侧面90度范围
+            weight = 1.5  # 大幅增强侧面障碍物权重，这是转弯时最关键的部分
+        filtered_points.append((x, y, weight))
+```
+
+### 8.2 阈值动态调整
+
+为了解决转弯处障碍物不连续的问题，实现了动态阈值调整机制：
+
+1. **转弯时降低障碍物检测阈值**
+   - 在转弯状态下，将障碍物判定阈值降低30%，使障碍物更容易被标记
+   - 通过参数`turn_threshold_factor`控制降低比例
+
+```python
+# 转弯时使用更低的阈值，更容易标记障碍物
+if self.is_turning:
+    local_threshold *= self.turn_threshold_factor
+```
+
+2. **距离与方向双重自适应**
+   - 结合点距离和方向因素，对障碍物计数阈值进行综合调整
+   - 近距离且位于转弯侧面的点使用更低阈值，远距离的点适当提高阈值
+
+### 8.3 地图平滑处理
+
+1. **高斯滤波平滑**
+   - 使用scipy库的高斯滤波对地图进行平滑处理，减少不连续性
+   - 根据转弯状态动态调整滤波窗口大小
+
+```python
+def smooth_map(self):
+    # ...
+    # 使用scipy的高斯滤波器对障碍物部分进行平滑
+    obstacle_map = (self.grid_map > 0).astype(np.float32)
+    smoothed = scipy.ndimage.gaussian_filter(obstacle_map, sigma=0.8, truncate=1.5)
+```
+
+2. **智能空隙填充**
+   - 检测障碍物之间的空隙，在满足特定条件时进行填充
+   - 消除转弯处墙壁上的不连续缝隙
+
+```python
+# 如果原来不是障碍物，但周围有很多障碍物支持，则标记为障碍物
+elif self.grid_map[x, y] == 0 and smoothed[x, y] > 0.7:
+    # 转弯时更容易填充空隙
+    if self.is_turning or self.count_neighbor_obstacles(x, y) >= 5:
+        self.grid_map[x, y] = 1
+```
+
+### 8.4 效果与改进
+
+经过上述优化，地图生成质量有显著提升：
+
+1. **墙壁轮廓更加连续**：转弯处的障碍物连接更加平滑，减少了锯齿状边缘
+2. **减少歪斜障碍物条**：通过方向感知过滤，有效减少了歪斜障碍物的产生
+3. **更准确的环境表示**：优化后的地图更好地保留了环境的实际几何特征
+
+这些改进使得地图在转弯区域也能保持高质量，为路径规划和导航提供更可靠的环境表示。
+
+## 9. ROS2相关技术应用
 
 本作业应用了以下ROS2技术：
 
@@ -145,7 +246,7 @@ plt.rcParams['axes.unicode_minus'] = False    # 用来正常显示负号
 5. **rosbag2**: 使用rosbag2进行数据记录和回放
 6. **坐标变换**: 使用tf2实现坐标系转换
 
-## 9. 与ROS1版本的对比
+## 10. 与ROS1版本的对比
 
 与ROS1相比，ROS2具有以下优势：
 
