@@ -1,0 +1,287 @@
+======== 阶段03-地图生成 日志开始 Sat Mar 22 13:52:56 CST 2025 ========
+正在设置ROS2环境...
+设置工作空间环境...
+提示: 没有找到lms_mapper_node可执行文件，将直接使用Python脚本
+正在启动LMS Mapper节点...
+执行: python3 /IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py --ros-args -p map_save_path:=occupancy_grid.png
+设置ROS2使用模拟时钟...
+usage: ros2 param set [-h] [--spin-time SPIN_TIME] [-s] [--no-daemon]
+                      [--include-hidden-nodes]
+                      node_name parameter_name value
+ros2 param set: error: the following arguments are required: value
+无法设置全局参数，将在节点启动时设置
+等待节点启动...
+[INFO] [1742622806.512079007] [lms_mapper]: 地图参数: 尺寸=1000x1000, 分辨率=0.1米/格
+[INFO] [1742622806.551491090] [lms_mapper]: 地图重置功能已禁用，将持续累积所有障碍物数据
+[INFO] [1742622806.551776007] [lms_mapper]: 中间地图保存间隔: 60.0秒
+[INFO] [1742622806.551978673] [lms_mapper]: 清除过期障碍物功能已禁用，将保留所有检测到的障碍物
+[INFO] [1742622806.552191632] [lms_mapper]: 运动过滤功能已启用：最小运动距离=0.5米，静止忽略时间=0.2秒
+[INFO] [1742622806.552395257] [lms_mapper]: 使用自适应阈值：基础阈值=2，距离因子=0.5
+[INFO] [1742622806.800989215] [lms_mapper]: LMS mapper node已启动
+[INFO] [1742622806.801343965] [lms_mapper]: LMS mapper node已启动，等待数据...
+[WARN] [1742622807.978088132] [lms_mapper]: 等待数据中... 20/600秒
+[WARN] [1742622809.210330925] [lms_mapper]: 等待数据中... 40/600秒
+[WARN] [1742622810.386753300] [lms_mapper]: 等待数据中... 60/600秒
+[WARN] [1742622811.531309717] [lms_mapper]: 等待数据中... 80/600秒
+节点已启动，PID: 38573
+检查可用的话题...
+[WARN] [1742622812.673137801] [lms_mapper]: 等待数据中... 100/600秒
+[WARN] [1742622813.799175719] [lms_mapper]: 等待数据中... 120/600秒
+[WARN] [1742622814.937609261] [lms_mapper]: 等待数据中... 140/600秒
+[WARN] [1742622816.098478553] [lms_mapper]: 等待数据中... 160/600秒
+[WARN] [1742622817.344323220] [lms_mapper]: 等待数据中... 180/600秒
+/clock
+/map
+/odom
+/parameter_events
+/rosout
+/scan
+[WARN] [1742622818.503265846] [lms_mapper]: 等待数据中... 200/600秒
+等待话题准备就绪...
+[WARN] [1742622819.681284096] [lms_mapper]: 等待数据中... 220/600秒
+[WARN] [1742622820.893273347] [lms_mapper]: 等待数据中... 240/600秒
+[WARN] [1742622821.961594333] [lms_mapper]: 等待数据中... 260/600秒
+[WARN] [1742622823.018726917] [lms_mapper]: 等待数据中... 280/600秒
+✅ /map 话题已准备就绪
+正在播放rosbag数据...
+等待系统准备就绪，确保时钟同步...
+[WARN] [1742622824.077441542] [lms_mapper]: 等待数据中... 300/600秒
+[WARN] [1742622825.160928168] [lms_mapper]: 等待数据中... 320/600秒
+[WARN] [1742622826.327996877] [lms_mapper]: 等待数据中... 340/600秒
+[WARN] [1742622827.472490627] [lms_mapper]: 等待数据中... 360/600秒
+[WARN] [1742622828.560092295] [lms_mapper]: 等待数据中... 380/600秒
+开始播放rosbag...
+[WARN] [1742622829.651473295] [lms_mapper]: 等待数据中... 400/600秒
+[WARN] [1742622830.805952754] [lms_mapper]: 等待数据中... 420/600秒
+[WARN] [1742622831.981792505] [lms_mapper]: 等待数据中... 440/600秒
+等待rosbag播放完成...
+[WARN] [1742622833.094486963] [lms_mapper]: 等待数据中... 460/600秒
+stdin is not a terminal device. Keyboard handling disabled.[WARN] [1742622834.245541964] [lms_mapper]: 等待数据中... 480/600秒
+[INFO] [1742622834.331581672] [rosbag2_storage]: Opened database 'lms_data.bag/lms_data.bag_0.db3' for READ_ONLY.
+[INFO] [1742622834.352479422] [rosbag2_player]: Set rate to 0.1
+[INFO] [1742622834.578461506] [rosbag2_player]: Adding keyboard callbacks.
+[INFO] [1742622834.578983381] [rosbag2_player]: Press SPACE for Pause/Resume
+[INFO] [1742622834.579468881] [rosbag2_player]: Press CURSOR_RIGHT for Play Next Message
+[INFO] [1742622834.579491131] [rosbag2_player]: Press CURSOR_UP for Increase Rate 10%
+[INFO] [1742622834.579520381] [rosbag2_player]: Press CURSOR_DOWN for Decrease Rate 10%
+[INFO] [1742622834.595902506] [rosbag2_storage]: Opened database 'lms_data.bag/lms_data.bag_0.db3' for READ_ONLY.
+[WARN] [1742622835.331104131] [lms_mapper]: 等待数据中... 500/600秒
+[INFO] [1742622836.003726965] [lms_mapper]: 接收到激光数据: frame_id=laser, 点数=361
+[INFO] [1742622836.100438882] [lms_mapper]: 记录起始位置: x=0.00, y=0.00, theta=0.00
+[INFO] [1742622836.141448215] [lms_mapper]: 记录起始位置: x=0.00, y=0.00, theta=0.00
+[INFO] [1742622836.152040132] [lms_mapper]: 当前使用的障碍物计数阈值: 1
+[INFO] [1742622842.935784343] [lms_mapper]: 机器人静止中 (6.8秒)，跳过处理激光数据
+⏳ 正在播放rosbag - 已等待 15/1800 秒...
+当前活跃话题:
+[INFO] [1742622849.941632680] [lms_mapper]: 机器人静止中 (13.8秒)，跳过处理激光数据
+[INFO] [1742622849.942312388] [lms_mapper]: 已接收轨迹点: 100
+[INFO] [1742622849.947345096] [lms_mapper]: 已接收轨迹点: 100
+[INFO] [1742622849.967965388] [lms_mapper]: 已接收轨迹点: 100
+[INFO] [1742622849.996356138] [lms_mapper]: 已接收轨迹点: 100
+[INFO] [1742622850.027301471] [lms_mapper]: 已接收轨迹点: 100
+[INFO] [1742622850.075026888] [lms_mapper]: 已接收轨迹点: 100
+[INFO] [1742622850.075823055] [lms_mapper]: 已接收轨迹点: 100
+[INFO] [1742622850.086318847] [lms_mapper]: 接收到激光数据: frame_id=laser, 点数=361
+[INFO] [1742622850.102203597] [lms_mapper]: 【激光雷达坐标】x=0.0000, y=0.0000, theta=0.0000
+[INFO] [1742622850.102552680] [lms_mapper]: 已接收轨迹点: 100
+/clock
+/events/read_split
+/map
+/odom
+/parameter_events
+/rosout
+/scan
+/tf
+[INFO] [1742622857.129195627] [lms_mapper]: 机器人静止中 (21.0秒)，跳过处理激光数据
+[INFO] [1742622864.152395464] [lms_mapper]: 机器人静止中 (28.1秒)，跳过处理激光数据
+[INFO] [1742622864.157806964] [lms_mapper]: 机器人静止中: 28.1秒, 位置: (0.00, 0.00)
+[INFO] [1742622864.158117297] [lms_mapper]: 已接收轨迹点: 200
+[INFO] [1742622864.159055422] [lms_mapper]: 已接收轨迹点: 200
+[INFO] [1742622864.185926089] [lms_mapper]: 已接收轨迹点: 200
+[INFO] [1742622864.208169422] [lms_mapper]: 已接收轨迹点: 200
+[INFO] [1742622864.237367464] [lms_mapper]: 已接收轨迹点: 200
+[INFO] [1742622864.251223089] [lms_mapper]: 接收到激光数据: frame_id=laser, 点数=361
+[INFO] [1742622864.251676131] [lms_mapper]: 【激光雷达坐标】x=0.0000, y=0.0000, theta=0.0000
+⏳ 正在播放rosbag - 已等待 30/1800 秒...
+当前活跃话题:
+[INFO] [1742622871.170782176] [lms_mapper]: 机器人静止中 (35.1秒)，跳过处理激光数据
+/clock
+/events/read_split
+/map
+/odom
+/parameter_events
+/rosout
+/scan
+/tf
+[INFO] [1742622876.380624636] [lms_mapper]: 【进度报告】运行时间: 69.8秒, 处理扫描: 274帧, 轨迹点: 274个, 障碍物格子: 95个, 轨迹已更新
+[INFO] [1742622876.409843595] [lms_mapper]: 共绘制障碍物点 95个
+[INFO] [1742622876.428564595] [lms_mapper]: 障碍物世界坐标范围: X=-1.50到0.90, Y=0.00到6.60
+[INFO] [1742622876.429159636] [lms_mapper]: 中间地图 #1: 绘制轨迹 274个点, 障碍物 95个
+⏳ 正在播放rosbag - 已等待 45/1800 秒...
+当前活跃话题:
+/clock
+/events/read_split
+/map
+/odom
+/parameter_events
+/rosout
+/scan
+/tf
+[INFO] [1742622898.175800757] [lms_mapper]: 地图显示边界: X=-20.0到50.0, Y=-20.0到55.0
+/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py:1625: UserWarning: Glyph 20013 (\N{CJK UNIFIED IDEOGRAPH-4E2D}) missing from current font.
+  plt.savefig(checkpoint_path, dpi=150)
+/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py:1625: UserWarning: Glyph 38388 (\N{CJK UNIFIED IDEOGRAPH-95F4}) missing from current font.
+  plt.savefig(checkpoint_path, dpi=150)
+/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py:1625: UserWarning: Glyph 22320 (\N{CJK UNIFIED IDEOGRAPH-5730}) missing from current font.
+  plt.savefig(checkpoint_path, dpi=150)
+/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py:1625: UserWarning: Glyph 22270 (\N{CJK UNIFIED IDEOGRAPH-56FE}) missing from current font.
+  plt.savefig(checkpoint_path, dpi=150)
+/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py:1625: UserWarning: Glyph 32467 (\N{CJK UNIFIED IDEOGRAPH-7ED3}) missing from current font.
+  plt.savefig(checkpoint_path, dpi=150)
+/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py:1625: UserWarning: Glyph 26524 (\N{CJK UNIFIED IDEOGRAPH-679C}) missing from current font.
+  plt.savefig(checkpoint_path, dpi=150)
+/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py:1625: UserWarning: Glyph 26816 (\N{CJK UNIFIED IDEOGRAPH-68C0}) missing from current font.
+  plt.savefig(checkpoint_path, dpi=150)
+/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py:1625: UserWarning: Glyph 26597 (\N{CJK UNIFIED IDEOGRAPH-67E5}) missing from current font.
+  plt.savefig(checkpoint_path, dpi=150)
+/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py:1625: UserWarning: Glyph 28857 (\N{CJK UNIFIED IDEOGRAPH-70B9}) missing from current font.
+  plt.savefig(checkpoint_path, dpi=150)
+/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py:1625: UserWarning: Glyph 26102 (\N{CJK UNIFIED IDEOGRAPH-65F6}) missing from current font.
+  plt.savefig(checkpoint_path, dpi=150)
+/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py:1625: UserWarning: Glyph 31186 (\N{CJK UNIFIED IDEOGRAPH-79D2}) missing from current font.
+  plt.savefig(checkpoint_path, dpi=150)
+/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py:1625: UserWarning: Glyph 36712 (\N{CJK UNIFIED IDEOGRAPH-8F68}) missing from current font.
+  plt.savefig(checkpoint_path, dpi=150)
+/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py:1625: UserWarning: Glyph 36857 (\N{CJK UNIFIED IDEOGRAPH-8FF9}) missing from current font.
+  plt.savefig(checkpoint_path, dpi=150)
+/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py:1625: UserWarning: Glyph 25968 (\N{CJK UNIFIED IDEOGRAPH-6570}) missing from current font.
+  plt.savefig(checkpoint_path, dpi=150)
+/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py:1625: UserWarning: Glyph 20010 (\N{CJK UNIFIED IDEOGRAPH-4E2A}) missing from current font.
+  plt.savefig(checkpoint_path, dpi=150)
+/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py:1625: UserWarning: Glyph 22352 (\N{CJK UNIFIED IDEOGRAPH-5750}) missing from current font.
+  plt.savefig(checkpoint_path, dpi=150)
+/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py:1625: UserWarning: Glyph 26631 (\N{CJK UNIFIED IDEOGRAPH-6807}) missing from current font.
+  plt.savefig(checkpoint_path, dpi=150)
+/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py:1625: UserWarning: Glyph 31859 (\N{CJK UNIFIED IDEOGRAPH-7C73}) missing from current font.
+  plt.savefig(checkpoint_path, dpi=150)
+/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py:1625: UserWarning: Glyph 26426 (\N{CJK UNIFIED IDEOGRAPH-673A}) missing from current font.
+  plt.savefig(checkpoint_path, dpi=150)
+/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py:1625: UserWarning: Glyph 22120 (\N{CJK UNIFIED IDEOGRAPH-5668}) missing from current font.
+  plt.savefig(checkpoint_path, dpi=150)
+/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py:1625: UserWarning: Glyph 20154 (\N{CJK UNIFIED IDEOGRAPH-4EBA}) missing from current font.
+  plt.savefig(checkpoint_path, dpi=150)
+/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py:1625: UserWarning: Glyph 36215 (\N{CJK UNIFIED IDEOGRAPH-8D77}) missing from current font.
+  plt.savefig(checkpoint_path, dpi=150)
+/IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py:1625: UserWarning: Glyph 32456 (\N{CJK UNIFIED IDEOGRAPH-7EC8}) missing from current font.
+  plt.savefig(checkpoint_path, dpi=150)
+[INFO] [1742622902.478820968] [lms_mapper]: 已保存中间地图 #1 到: map_checkpoint_1.png
+[INFO] [1742622906.934305095] [lms_mapper]: 机器人静止中 (70.8秒)，跳过处理激光数据
+[INFO] [1742622906.962972012] [lms_mapper]: 已接收轨迹点: 300
+[INFO] [1742622906.963566470] [lms_mapper]: 已接收轨迹点: 300
+[INFO] [1742622906.963937053] [lms_mapper]: 接收到激光数据: frame_id=laser, 点数=361
+[INFO] [1742622906.964283595] [lms_mapper]: 【激光雷达坐标】x=0.0000, y=0.0000, theta=0.0000
+[INFO] [1742622906.995229428] [lms_mapper]: 已接收轨迹点: 300
+⏳ 正在播放rosbag - 已等待 60/1800 秒...
+当前活跃话题:
+[INFO] [1742622913.734756251] [lms_mapper]: 机器人静止中 (77.6秒)，跳过处理激光数据
+/clock
+/events/read_split
+/map
+/odom
+/parameter_events
+/rosout
+/scan
+/tf
+[INFO] [1742622920.766232504] [lms_mapper]: 机器人静止中 (84.7秒)，跳过处理激光数据
+[INFO] [1742622920.776072921] [lms_mapper]: 机器人静止中: 84.7秒, 位置: (0.00, 0.00)
+[INFO] [1742622920.794523212] [lms_mapper]: 已接收轨迹点: 400
+[INFO] [1742622920.795387754] [lms_mapper]: 已接收轨迹点: 400
+[INFO] [1742622920.829242129] [lms_mapper]: 已接收轨迹点: 400
+[INFO] [1742622920.850007337] [lms_mapper]: 已接收轨迹点: 400
+[INFO] [1742622920.871394212] [lms_mapper]: 已接收轨迹点: 400
+[INFO] [1742622920.897382212] [lms_mapper]: 已接收轨迹点: 400
+[INFO] [1742622920.921154421] [lms_mapper]: 已接收轨迹点: 400
+[INFO] [1742622920.941321379] [lms_mapper]: 接收到激光数据: frame_id=laser, 点数=361
+[INFO] [1742622920.948478796] [lms_mapper]: 【激光雷达坐标】x=0.0000, y=0.0000, theta=0.0000
+[INFO] [1742622920.948878254] [lms_mapper]: 已接收轨迹点: 400
+[INFO] [1742622926.445023715] [lms_mapper]: 【进度报告】运行时间: 119.9秒, 处理扫描: 427帧, 轨迹点: 427个, 障碍物格子: 95个, 轨迹已更新
+[INFO] [1742622926.469114048] [lms_mapper]: 共绘制障碍物点 95个
+[INFO] [1742622926.494398798] [lms_mapper]: 障碍物世界坐标范围: X=-1.50到0.90, Y=0.00到6.60
+[INFO] [1742622926.494713965] [lms_mapper]: 中间地图 #2: 绘制轨迹 427个点, 障碍物 95个
+[INFO] [1742622931.267599217] [lms_mapper]: 地图显示边界: X=-20.0到50.0, Y=-20.0到55.0
+[INFO] [1742622934.555177219] [lms_mapper]: 已保存中间地图 #2 到: map_checkpoint_2.png
+⏳ 正在播放rosbag - 已等待 75/1800 秒...
+当前活跃话题:
+[INFO] [1742622936.713679095] [lms_mapper]: 机器人静止中 (100.6秒)，跳过处理激光数据
+/clock
+/events/read_split
+/map
+/odom
+/parameter_events
+/rosout
+/scan
+/tf
+[INFO] [1742622943.727504292] [lms_mapper]: 机器人静止中 (107.6秒)，跳过处理激光数据
+[INFO] [1742622943.728154334] [lms_mapper]: 已接收轨迹点: 500
+[INFO] [1742622943.734896417] [lms_mapper]: 已接收轨迹点: 500
+[INFO] [1742622943.785080834] [lms_mapper]: 已接收轨迹点: 500
+[INFO] [1742622943.788503459] [lms_mapper]: 已接收轨迹点: 500
+[INFO] [1742622943.819736834] [lms_mapper]: 已接收轨迹点: 500
+[INFO] [1742622943.836088959] [lms_mapper]: 已接收轨迹点: 500
+[INFO] [1742622943.864491459] [lms_mapper]: 已接收轨迹点: 500
+[INFO] [1742622943.894150001] [lms_mapper]: 已接收轨迹点: 500
+[INFO] [1742622943.894633209] [lms_mapper]: 接收到激光数据: frame_id=laser, 点数=361
+[INFO] [1742622943.894934709] [lms_mapper]: 【激光雷达坐标】x=0.0000, y=0.0000, theta=0.0000
+[INFO] [1742622943.897213751] [lms_mapper]: 已接收轨迹点: 500
+[INFO] [1742622950.796445921] [lms_mapper]: 机器人静止中 (114.7秒)，跳过处理激光数据
+[INFO] [1742622957.826917299] [lms_mapper]: 机器人静止中 (121.7秒)，跳过处理激光数据
+[INFO] [1742622957.828571174] [lms_mapper]: 机器人静止中: 121.7秒, 位置: (0.00, 0.00)
+[INFO] [1742622957.855816382] [lms_mapper]: 已接收轨迹点: 600
+[INFO] [1742622957.856942257] [lms_mapper]: 已接收轨迹点: 600
+[INFO] [1742622957.887935341] [lms_mapper]: 已接收轨迹点: 600
+[INFO] [1742622957.917749132] [lms_mapper]: 已接收轨迹点: 600
+[INFO] [1742622957.976391341] [lms_mapper]: 已接收轨迹点: 600
+[INFO] [1742622957.977271674] [lms_mapper]: 已接收轨迹点: 600
+[INFO] [1742622957.998067341] [lms_mapper]: 已接收轨迹点: 600
+[INFO] [1742622958.017465174] [lms_mapper]: 已接收轨迹点: 600
+[INFO] [1742622958.017854091] [lms_mapper]: 接收到激光数据: frame_id=laser, 点数=361
+[INFO] [1742622958.018137799] [lms_mapper]: 【激光雷达坐标】x=0.0000, y=0.0000, theta=0.0000
+[INFO] [1742622958.018379507] [lms_mapper]: 已接收轨迹点: 600
+⏳ 正在播放rosbag - 已等待 90/1800 秒...
+当前活跃话题:
+/clock
+/events/read_split
+/map
+/odom
+/parameter_events
+/rosout
+/scan
+/tf
+[INFO] [1742622967.439684179] [lms_mapper]: 机器人静止中 (131.3秒)，跳过处理激光数据
+[INFO] [1742622973.318307084] [lms_mapper]: 机器人静止中 (137.2秒)，跳过处理激光数据
+[INFO] [1742622973.343060167] [lms_mapper]: 已接收轨迹点: 700
+[INFO] [1742622973.343701167] [lms_mapper]: 已接收轨迹点: 700
+[INFO] [1742622973.370416042] [lms_mapper]: 已接收轨迹点: 700
+[INFO] [1742622973.390934417] [lms_mapper]: 已接收轨迹点: 700
+[INFO] [1742622973.409234625] [lms_mapper]: 已接收轨迹点: 700
+[INFO] [1742622973.418922959] [lms_mapper]: 已接收轨迹点: 700
+[INFO] [1742622973.419379625] [lms_mapper]: 接收到激光数据: frame_id=laser, 点数=361
+[INFO] [1742622973.419727625] [lms_mapper]: 【激光雷达坐标】x=0.0000, y=0.0000, theta=0.0000
+[INFO] [1742622973.419980542] [lms_mapper]: 已接收轨迹点: 700
+[INFO] [1742622977.893208919] [lms_mapper]: 【进度报告】运行时间: 171.3秒, 处理扫描: 709帧, 轨迹点: 709个, 障碍物格子: 95个, 轨迹已更新
+[INFO] [1742622977.991522794] [lms_mapper]: 共绘制障碍物点 95个
+[INFO] [1742622977.992671544] [lms_mapper]: 障碍物世界坐标范围: X=-1.50到0.90, Y=0.00到6.60
+[INFO] [1742622978.022456919] [lms_mapper]: 中间地图 #3: 绘制轨迹 709个点, 障碍物 95个
+[INFO] [1742622979.275343170] [lms_mapper]: 地图显示边界: X=-20.0到50.0, Y=-20.0到55.0
+⏳ 正在播放rosbag - 已等待 105/1800 秒...
+当前活跃话题:
+[INFO] [1742622982.740294005] [lms_mapper]: 已保存中间地图 #3 到: map_checkpoint_3.png
+/clock
+/events/read_split
+/map
+/odom
+/parameter_events
+/rosout
+/scan
+/tf
+[INFO] [1742622988.250418674] [lms_mapper]: 机器人静止中 (152.2秒)，跳过处理激光数据

@@ -214,14 +214,14 @@ class LaserDataPreprocessor:
         # 绘制极坐标图
         ax1 = plt.subplot(211, polar=True)
         ax1.scatter(valid_angles, valid_distances, s=2, c='r')
-        ax1.set_title(f'帧 #{frame_index} 极坐标视图（极角vs距离）')
+        ax1.set_title(f'Frame #{frame_index} Polar View (Angle vs Distance)')
         ax1.set_theta_zero_location('N')
         ax1.set_theta_direction(-1)  # 顺时针方向
         
         # 绘制笛卡尔坐标图
         ax2 = plt.subplot(212)
         ax2.scatter(x, y, s=2, c='b')
-        ax2.set_title(f'帧 #{frame_index} 笛卡尔坐标视图')
+        ax2.set_title(f'Frame #{frame_index} Cartesian View')
         ax2.set_xlabel('X (m)')
         ax2.set_ylabel('Y (m)')
         ax2.grid(True)
@@ -233,8 +233,8 @@ class LaserDataPreprocessor:
         ax2.set_ylim([-max_range, max_range])
         
         # 显示额外信息
-        plt.figtext(0.1, 0.01, f"时间戳: {scan['timestamp']}", fontsize=10)
-        plt.figtext(0.5, 0.01, f"总点数: {len(laser_data)}, 有效点数: {np.sum(valid_indices)}", fontsize=10)
+        plt.figtext(0.1, 0.01, f"Timestamp: {scan['timestamp']}", fontsize=10)
+        plt.figtext(0.5, 0.01, f"Total Points: {len(laser_data)}, Valid Points: {np.sum(valid_indices)}", fontsize=10)
         
         plt.tight_layout()
         
@@ -242,7 +242,7 @@ class LaserDataPreprocessor:
         if save_fig:
             fig_name = f"laser_scan_frame_{frame_index}.png"
             plt.savefig(fig_name, dpi=300)
-            self.log(f"已保存可视化图像到 {fig_name}")
+            self.log(f"Visualization image saved to {fig_name}")
         
         plt.show()
         
@@ -326,9 +326,9 @@ class LaserDataPreprocessor:
         for i, points in enumerate(scan_points):
             color = colors[i % len(colors)]
             plt.scatter(points['x'], points['y'], s=2, c=color, 
-                       label=f"帧 #{points['frame_index']} (时间戳:{points['timestamp']})")
+                       label=f"Frame #{points['frame_index']} (Timestamp:{points['timestamp']})")
         
-        plt.title('多帧激光扫描数据比较')
+        plt.title('Multiple Laser Scan Frames Comparison')
         plt.xlabel('X (m)')
         plt.ylabel('Y (m)')
         plt.grid(True)
@@ -348,9 +348,7 @@ class LaserDataPreprocessor:
         if save_fig:
             fig_name = f"laser_scan_multiple_frames.png"
             plt.savefig(fig_name, dpi=300)
-            self.log(f"已保存多帧比较图像到 {fig_name}")
-        
-        plt.show()
+            self.log(f"Visualization of multiple frames saved to {fig_name}")
     
     def analyze_data_structure(self):
         """分析数据结构，尝试确定正确的数据格式"""

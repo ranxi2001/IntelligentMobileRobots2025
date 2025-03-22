@@ -114,5 +114,6 @@ colcon_package_source_powershell_script "$env:COLCON_CURRENT_PREFIX\share/lms_ma
 colcon_package_source_powershell_script "$env:COLCON_CURRENT_PREFIX\share/lms_mapper/hook/pythonpath.ps1"
 colcon_package_source_powershell_script "$env:COLCON_CURRENT_PREFIX\share/lms_mapper/hook/pythonscriptspath.ps1"
 colcon_package_source_powershell_script "$env:COLCON_CURRENT_PREFIX\share/lms_mapper/hook/ament_prefix_path.ps1"
+colcon_package_source_powershell_script "$env:COLCON_CURRENT_PREFIX\../../build/lms_mapper/share/lms_mapper/hook/pythonpath_develop.ps1"
 
 Remove-Item Env:\COLCON_CURRENT_PREFIX

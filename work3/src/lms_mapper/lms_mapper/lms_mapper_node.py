@@ -25,35 +25,8 @@ from collections import Counter
 import copy
 import matplotlib
 
-# 在脚本开头添加函数来检测和设置中文字体
-def setup_chinese_font():
-    """设置中文字体，尝试多种可能的字体"""
-    # 常见的中文字体，按优先级排序
-    chinese_fonts = ['WenQuanYi Zen Hei', 'WenQuanYi Micro Hei', 'Noto Sans CJK SC', 
-                     'SimSun', 'SimHei', 'Microsoft YaHei', 
-                     'AR PL UMing CN', 'AR PL UKai CN', 'NSimSun', 
-                     'STSong', 'STFangsong', 'FangSong', 'KaiTi']
-    
-    # 检测系统中是否存在这些字体
-    available_fonts = []
-    for font in chinese_fonts:
-        if font.lower() in [f.name.lower() for f in matplotlib.font_manager.fontManager.ttflist]:
-            available_fonts.append(font)
-            print(f"找到中文字体: {font}")
-    
-    if available_fonts:
-        # 使用找到的第一个中文字体
-        plt.rcParams['font.sans-serif'] = available_fonts + ['DejaVu Sans', 'Arial Unicode MS', 'sans-serif']
-        print(f"设置中文字体为: {available_fonts[0]}")
-        return available_fonts[0]
-    else:
-        # 没有找到中文字体，使用默认设置
-        print("未找到中文字体，使用默认设置")
-        plt.rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial Unicode MS', 'sans-serif']
-        return None
-
-# 设置中文字体
-chinese_font = setup_chinese_font()
+# 设置默认字体为通用英文字体
+plt.rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial', 'Helvetica', 'sans-serif']
 plt.rcParams['axes.unicode_minus'] = False    # 用来正常显示负号
 
 # 移除固定的地图边界常量，改为函数来动态计算边界
@@ -367,14 +340,14 @@ class OccupancyGridMapper:
             plt.plot(traj_x, traj_y, 'g-', linewidth=2, alpha=0.7)
             
             # 标记起点和终点
-            plt.plot(traj_x[0], traj_y[0], 'go', markersize=10, label='起点')
-            plt.plot(traj_x[-1], traj_y[-1], 'ko', markersize=10, label='终点')  # 改为黑色终点标记
+            plt.plot(traj_x[0], traj_y[0], 'go', markersize=10, label='Start')
+            plt.plot(traj_x[-1], traj_y[-1], 'ko', markersize=10, label='End')  # 改为红色终点标记
         
         # 添加标题和坐标轴标签
-        plt.title('占用栅格图 (白色=空闲, 红色=障碍物, 绿色=起点与轨迹, 黑色=终点)', fontsize=14)
+        plt.title('Occupancy Grid Map (White=Free, Red=Obstacle, Green=Start/Trajectory, Black=End)', fontsize=14)
         plt.xlabel('X (m)', fontsize=14)
         plt.ylabel('Y (m)', fontsize=14)
-        plt.colorbar(label='占用概率')
+        plt.colorbar(label='Occupancy Probability')
         plt.grid(True, alpha=0.3)
         
         # 使用全局定义的固定显示范围
@@ -1292,7 +1265,7 @@ class LmsMapperNode(Node):
                 # 如果没有轨迹信息，仍然显示所有障碍物
                 obs_x = [p[0] for p in all_obstacle_points]
                 obs_y = [p[1] for p in all_obstacle_points]
-                plt.scatter(obs_x, obs_y, color='#FF0000', s=30, label='障碍物')
+                plt.scatter(obs_x, obs_y, color='#FF0000', s=30, label='Obstacles')
             
             # 绘制轨迹 - 使用渐变色显示时间进度
             if current_trajectory and len(current_trajectory) > 1:
@@ -1317,16 +1290,16 @@ class LmsMapperNode(Node):
                         plt.plot(current_trajectory[i][0], current_trajectory[i][1], 'bo', markersize=6, alpha=0.7)
                 
                 # 标记起点和终点
-                plt.plot(current_trajectory[0][0], current_trajectory[0][1], 'go', markersize=12, markeredgecolor='black', label='起点')
-                plt.plot(current_trajectory[-1][0], current_trajectory[-1][1], 'ro', markersize=12, markeredgecolor='black', label='终点')
+                plt.plot(current_trajectory[0][0], current_trajectory[0][1], 'go', markersize=12, markeredgecolor='black', label='Start')
+                plt.plot(current_trajectory[-1][0], current_trajectory[-1][1], 'ko', markersize=12, markeredgecolor='black', label='End')
                 
                 # 添加自定义图例
                 from matplotlib.lines import Line2D
                 legend_elements = [
-                    Line2D([0], [0], color='blue', lw=2, label='机器人轨迹'),
-                    plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='g', markersize=10, label='起点'),
-                    plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='r', markersize=10, label='终点'),
-                    plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='red', markersize=10, label='障碍物')
+                    Line2D([0], [0], color='blue', lw=2, label='Robot Trajectory'),
+                    plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='g', markersize=10, label='Start'),
+                    plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='r', markersize=10, label='End'),
+                    plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='red', markersize=10, label='Obstacles')
                 ]
                 plt.legend(handles=legend_elements, loc='upper right', fontsize=12)
             else:
@@ -1350,9 +1323,9 @@ class LmsMapperNode(Node):
             plt.xticks(np.arange(math.floor(map_bounds[0]), math.ceil(map_bounds[1])+1, grid_step_m))
             plt.yticks(np.arange(math.floor(map_bounds[2]), math.ceil(map_bounds[3])+1, grid_step_m))
             
-            plt.xlabel('X 坐标 (米)', fontsize=14)
-            plt.ylabel('Y 坐标 (米)', fontsize=14)
-            plt.title('激光地图 (红色=障碍物, 彩色轨迹=机器人路径)', fontsize=16, fontweight='bold')
+            plt.xlabel('X Coordinate (m)', fontsize=14)
+            plt.ylabel('Y Coordinate (m)', fontsize=14)
+            plt.title('Laser Map (Red=Obstacles, Colored Trajectory=Robot Path)', fontsize=16, fontweight='bold')
             
             # 保存并关闭图像
             try:
@@ -1369,9 +1342,9 @@ class LmsMapperNode(Node):
                 try:
                     backup_path = '/tmp/emergency_map.png'
                     plt.savefig(backup_path, dpi=200)
-                    self.get_logger().info(f'已保存应急地图到: {backup_path}')
+                    self.get_logger().info(f'Emergency map saved to: {backup_path}')
                 except:
-                    self.get_logger().error('无法保存地图到任何位置')
+                    self.get_logger().error('Cannot save map to any location')
         except Exception as plt_err:
             self.get_logger().error(f'绘制地图时出错: {str(plt_err)}')
             import traceback
@@ -1412,7 +1385,7 @@ class LmsMapperNode(Node):
                 
                 plt.xlabel('X (m)', fontsize=12)
                 plt.ylabel('Y (m)', fontsize=12)
-                plt.title('机器人轨迹', fontsize=14)
+                plt.title('Robot Trajectory', fontsize=14)
                 plt.legend(loc='upper right')
                 
                 traj_path = 'robot_trajectory.png'
@@ -1630,9 +1603,9 @@ class LmsMapperNode(Node):
                 plt.yticks(np.arange(math.floor(map_bounds[2]), math.ceil(map_bounds[3])+1, grid_step_m))
                 
                 # 添加轨迹信息到标题
-                title_text = f'中间地图结果 - 检查点 {self.checkpoint_counter} (时间: {(time.time() - self.start_time):.1f}秒)'
+                title_text = f'Intermediate Map - Checkpoint {self.checkpoint_counter} (Time: {(time.time() - self.start_time):.1f}s)'
                 if current_trajectory:
-                    title_text += f' - 轨迹点数: {len(current_trajectory)}个'
+                    title_text += f' - Trajectory Points: {len(current_trajectory)}'
                 plt.title(title_text)
                 
                 # 添加轨迹图层 - 直接在matplotlib中再画一遍轨迹确保可见性
@@ -1644,9 +1617,9 @@ class LmsMapperNode(Node):
                     plt.plot(traj_x[-1], traj_y[-1], 'ko', markersize=10)  # 黑色终点
                     
                     # 添加坐标轴标签和图例
-                    plt.xlabel('X坐标 (米)', fontsize=12)
-                    plt.ylabel('Y坐标 (米)', fontsize=12)
-                    plt.legend(['机器人轨迹', '起点', '终点'], loc='upper right', fontsize=10)
+                    plt.xlabel('X Coordinate (m)', fontsize=12)
+                    plt.ylabel('Y Coordinate (m)', fontsize=12)
+                    plt.legend(['Robot Trajectory', 'Start', 'End'], loc='upper right', fontsize=10)
                 
                 # 提高DPI以增加清晰度
                 plt.savefig(checkpoint_path, dpi=150)
@@ -1802,13 +1775,13 @@ def main(args=None):
                         # 尝试保存到备用位置
                         backup_path = '/tmp/emergency_map.png'
                         plt.figure(figsize=(10, 10))
-                        plt.title('应急地图 (由于错误自动保存)')
+                        plt.title('Emergency Map (Auto-saved due to error)')
                         plt.imshow(node.grid_map.T, cmap='binary', origin='lower')
                         plt.savefig(backup_path)
                         plt.close()
-                        node.get_logger().info(f'已保存应急地图到: {backup_path}')
+                        node.get_logger().info(f'Emergency map saved to: {backup_path}')
                     except:
-                        node.get_logger().error('保存应急地图也失败，无法保存地图')
+                        node.get_logger().error('Cannot save map to any location')
                 
                 # 打印最终统计信息
                 total_obstacle_cells = np.sum(node.grid_map == 1)
