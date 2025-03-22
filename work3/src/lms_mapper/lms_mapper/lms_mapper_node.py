@@ -453,7 +453,25 @@ class LmsMapperNode(Node):
     
     def __init__(self):
         """初始化节点"""
-        super().__init__('lms_mapper')
+        super().__init__('lms_mapper_node')
+        
+        # 初始化地图参数
+        self.map_resolution = 0.05  # 地图分辨率（米/像素）
+        self.map_width = 1000  # 地图宽度（像素）
+        self.map_height = 1000  # 地图高度（像素）
+        self.map_origin_x = -25.0  # 地图原点X坐标（米）
+        self.map_origin_y = -25.0  # 地图原点Y坐标（米）
+        
+        # 初始化点云处理参数
+        self.obstacle_detection_threshold = 0.7  # 障碍物检测阈值
+        self.obstacle_threshold_during_turns = 0.5  # 转弯时降低障碍物检测阈值
+        self.min_motion_distance = 0.01  # 最小移动距离（米）
+        self.static_ignore_time = 1.0  # 静止超过此时间则忽略数据（秒）
+        self.turn_detection_threshold = 0.03  # 转弯检测角度阈值(弧度)，降低阈值更容易检测转弯
+        self.turning_history_max_len = 5  # 转弯状态历史长度
+        self.turning_history = []  # 转弯状态历史
+        self.is_turning = False  # 是否正在转弯
+        self.last_theta = None  # 上次朝向
         
         # 设置信号处理，捕获关闭信号
         signal.signal(signal.SIGINT, self._signal_handler)
@@ -484,8 +502,8 @@ class LmsMapperNode(Node):
         self.declare_parameter('adaptive_threshold', True)  # 保持启用自适应阈值
         self.declare_parameter('base_threshold', 2)  # 降低基础阈值，使转弯处显示更多障碍点
         self.declare_parameter('distance_threshold_factor', 0.5)  # 降低距离因子，远处障碍物也能更好地被检测
-        self.declare_parameter('turn_detection_threshold', 0.05)  # 转弯检测角度阈值(弧度)
-        self.declare_parameter('turn_threshold_factor', 0.7)  # 转弯时阈值降低系数
+        self.declare_parameter('turn_detection_threshold', 0.03)  # 转弯检测角度阈值(弧度)，降低阈值更容易检测转弯
+        self.declare_parameter('turn_threshold_factor', 0.5)  # 转弯时阈值降低系数，降低更多以捕获更多障碍物
         self.declare_parameter('turn_filter_window', 3)  # 转弯时滤波窗口大小
         self.declare_parameter('smooth_map_enabled', True)  # 是否启用地图平滑
         self.declare_parameter('direction_filter_enabled', True)  # 是否启用方向过滤
@@ -803,10 +821,14 @@ class LmsMapperNode(Node):
                     if not self.is_moving:  # 如果已经静止，继续累计时间
                         static_duration = current_time - self.last_moved_time if self.last_moved_time else 0
                         # 立即跳过起始静止阶段和长时间静止的数据
-                        if (self.in_static_start_phase and self.processed_scans > 10) or static_duration > self.static_ignore_time:
+                        # 转弯时不跳过数据处理，确保捕获转弯期间的障碍物
+                        if ((self.in_static_start_phase and self.processed_scans > 10) or static_duration > self.static_ignore_time) and not self.is_turning:
                             if self.processed_scans % 50 == 0:  # 降低日志频率
                                 self.get_logger().info(f'机器人静止中 ({static_duration:.1f}秒)，跳过处理激光数据')
                             return
+                        # 转弯时即使静止也处理数据
+                        elif self.is_turning and self.processed_scans % 50 == 0:
+                            self.get_logger().info(f'机器人转弯中静止 ({static_duration:.1f}秒)，继续处理激光数据以确保地图完整')
                     else:  # 如果是刚开始静止
                         self.is_moving = False
                         self.last_moved_time = current_time
@@ -1034,7 +1056,12 @@ class LmsMapperNode(Node):
                                 local_threshold = self.base_threshold
                                 
                                 # 修改自适应阈值计算：对转弯处障碍物进行特殊处理
-                                if distance > 5.0:  # 5米以外的点
+                                if self.is_turning:
+                                    # 转弯时大幅降低阈值，更容易记录障碍物
+                                    local_threshold = max(1, self.base_threshold * self.turn_threshold_factor)
+                                    if self.processed_scans % 100 == 1:
+                                        self.get_logger().info(f'转弯中，使用降低的障碍物阈值: {local_threshold}')
+                                elif distance > 5.0:  # 5米以外的点
                                     # 距离因子影响较小，使远处障碍物更容易被检测到
                                     local_threshold += distance * self.distance_threshold_factor * 0.5
                                 else:
@@ -1964,7 +1991,14 @@ class LmsMapperNode(Node):
                 if angle_diff < math.pi/4:  # 前方45度范围
                     weight = 1.2  # 增强前方障碍物权重
                 elif math.pi/4 <= angle_diff < 3*math.pi/4:  # 侧面90度范围
-                    weight = 1.5  # 大幅增强侧面障碍物权重，这是转弯时最关键的部分
+                    weight = 2.0  # 大幅增强侧面障碍物权重，这是转弯时最关键的部分
+                else:  # 后方范围
+                    weight = 1.5  # 转弯时后方障碍物也很重要
+                
+                # 根据距离额外增加权重，近距离障碍物更重要
+                if dist < 2.0:  # 2米内
+                    weight *= 1.3  # 额外增加30%权重
+                
                 filtered_points.append((x, y, weight))
             else:
                 # 直行时更关注前方的障碍物
