@@ -368,7 +368,7 @@ if ps -p $MAPPER_PID > /dev/null; then
     kill -SIGTERM $MAPPER_PID || true
     
     # 等待节点关闭，最多60秒（增加等待时间）
-    for i in {1..60}; do
+    for i in {1..600}; do
         if ! ps -p $MAPPER_PID > /dev/null; then
             echo "✅ 节点已正常关闭"
             break

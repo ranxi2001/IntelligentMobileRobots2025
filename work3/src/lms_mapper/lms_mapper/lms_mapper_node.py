@@ -472,6 +472,7 @@ class LmsMapperNode(Node):
         self.turning_history = []  # 转弯状态历史
         self.is_turning = False  # 是否正在转弯
         self.last_theta = None  # 上次朝向
+        self.turning_max_distance = 10.0  # 默认最大距离限制（非转弯状态）
         
         # 设置信号处理，捕获关闭信号
         signal.signal(signal.SIGINT, self._signal_handler)
@@ -643,6 +644,7 @@ class LmsMapperNode(Node):
         self.last_theta = 0.0
         self.turning_history = []  # 记录最近的角度变化
         self.turning_history_max_len = 5
+        self.turning_max_distance = 10.0  # 默认最大距离限制（非转弯状态）
         
         self.get_logger().info('LMS mapper node已启动')
     
@@ -1029,6 +1031,22 @@ class LmsMapperNode(Node):
                     dx = points[:, 0] - robot_x
                     dy = points[:, 1] - robot_y
                     distances = np.sqrt(dx*dx + dy*dy)
+                    
+                    # 转弯时过滤远处障碍物
+                    if self.is_turning:
+                        max_distance = getattr(self, 'turning_max_distance', 3.0)
+                        valid_indices = np.where(distances <= max_distance)[0]
+                        if len(valid_indices) < len(points):
+                            # 记录过滤情况
+                            if hasattr(self, '_map_stats_count') and self._map_stats_count % 50 == 0:
+                                filtered_count = len(points) - len(valid_indices)
+                                self.get_logger().info(f'转弯中过滤{filtered_count}个远距离点 (>{max_distance:.1f}米)')
+                            # 仅保留符合距离要求的点
+                            points = points[valid_indices]
+                            distances = distances[valid_indices]
+                            
+                            if len(points) == 0:
+                                return  # 如果所有点都被过滤，直接返回
                     
                     # 记录调试信息
                     if len(points) > 100 and hasattr(self, '_map_stats_count') and self._map_stats_count % 50 == 0:
@@ -1931,12 +1949,20 @@ class LmsMapperNode(Node):
             was_turning = self.is_turning
             self.is_turning = avg_angle_change > self.turn_detection_threshold
             
-            # 转弯状态改变时记录日志
-            if was_turning != self.is_turning:
-                if self.is_turning:
-                    self.get_logger().info(f'检测到机器人开始转弯，角度变化率: {avg_angle_change:.4f} rad/s')
-                else:
-                    self.get_logger().info(f'机器人转弯结束，角度变化率降低到: {avg_angle_change:.4f} rad/s')
+            # 设置转弯时的障碍物距离限制，角速度越大，距离限制越小
+            if self.is_turning:
+                # 计算转弯程度因子 (0.0-1.0)
+                turn_factor = min(1.0, avg_angle_change / (self.turn_detection_threshold * 5))
+                # 距离从2米到4米之间动态调整
+                self.turning_max_distance = 4.0 - 2.0 * turn_factor
+                if was_turning != self.is_turning:
+                    self.get_logger().info(f'检测到机器人开始转弯，角度变化率: {avg_angle_change:.4f} rad/s, 障碍物距离限制: {self.turning_max_distance:.2f}m')
+            elif was_turning:
+                self.get_logger().info(f'机器人转弯结束，角度变化率降低到: {avg_angle_change:.4f} rad/s')
+                self.turning_max_distance = 10.0  # 恢复默认值
+        else:
+            # 初始化
+            self.turning_max_distance = 10.0  # 默认距离限制
         
         # 更新上一次的角度
         self.last_theta = current_theta
@@ -1967,6 +1993,18 @@ class LmsMapperNode(Node):
             if abs(dx) > 0.01 or abs(dy) > 0.01:  # 有明显移动
                 movement_direction = math.atan2(dy, dx)
         
+        # 转弯时的最大距离限制（使用动态计算的值）
+        max_distance_in_turn = getattr(self, 'turning_max_distance', 3.0)  # 如果没有设置，默认3米
+        
+        # 记录当前使用的距离限制（降低日志频率）
+        if hasattr(self, '_filter_log_count'):
+            self._filter_log_count += 1
+        else:
+            self._filter_log_count = 0
+            
+        if self._filter_log_count % 100 == 0 and self.is_turning:
+            self.get_logger().info(f'转弯中使用障碍物距离限制: {max_distance_in_turn:.2f}米')
+        
         # 根据运动方向过滤点
         for point in points:
             x, y = point
@@ -1977,6 +2015,10 @@ class LmsMapperNode(Node):
             dist = math.sqrt(dx*dx + dy*dy)
             
             if dist < 0.001:  # 避免除零错误
+                continue
+            
+            # 转弯时过滤远处障碍物
+            if self.is_turning and dist > max_distance_in_turn:
                 continue
                 
             point_angle = math.atan2(dy, dx)
