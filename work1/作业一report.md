@@ -186,8 +186,9 @@ def plot_trajectory(x, y):
 
 航位推算方法的优点在于实现简单、计算效率高，可以实时运行。其主要缺点是误差随时间累积，长时间运行可能导致较大的位置偏差。在实际应用中，应结合其他定位方法进行互补。
 
+> 本人本次作业的项目代码仓库：https://github.com/ranxi2001/IntelligentMobileRobots2025
 
-## 附录：完整代码
+## 附录：作业一完整代码
 
 ```python
 import numpy as np
