@@ -427,7 +427,7 @@ class LMSDataAnalyzer:
             y = valid_distances * np.sin(valid_angles)
             
             plt.scatter(x, y, s=10, alpha=0.7)
-            plt.title(f'帧 #{idx+1} (时间戳: {scan["timestamp"]})')
+            plt.title(f'Frame #{idx+1} (Timestamp: {scan["timestamp"]})')
             plt.xlabel('X')
             plt.ylabel('Y')
             plt.grid(True)

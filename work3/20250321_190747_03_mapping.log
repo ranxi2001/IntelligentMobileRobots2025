@@ -1,0 +1,21 @@
+======== 阶段03-地图生成 日志开始 Fri Mar 21 19:07:47 CST 2025 ========
+正在设置ROS2环境...
+设置工作空间环境...
+提示: 没有找到lms_mapper_node可执行文件，将直接使用Python脚本
+正在启动LMS Mapper节点...
+执行: python3 /IntelligentMobileRobots2025/work3/src/lms_mapper/lms_mapper/lms_mapper_node.py --ros-args -p map_save_path:=occupancy_grid.png
+设置ROS2使用模拟时钟...
+usage: ros2 param set [-h] [--spin-time SPIN_TIME] [-s] [--no-daemon]
+                      [--include-hidden-nodes]
+                      node_name parameter_name value
+ros2 param set: error: the following arguments are required: value
+无法设置全局参数，将在节点启动时设置
+等待节点启动...
+[INFO] [1742555289.813092126] [lms_mapper_node]: 地图重置功能已禁用，将持续累积所有障碍物数据
+[INFO] [1742555289.814877459] [lms_mapper_node]: 中间地图保存间隔: 60.0秒
+[INFO] [1742555289.815111126] [lms_mapper_node]: 清除过期障碍物功能已禁用，将保留所有检测到的障碍物
+[INFO] [1742555289.959929293] [lms_mapper_node]: LMS mapper node已启动
+[INFO] [1742555289.960242335] [lms_mapper_node]: LMS mapper node已启动，等待数据...
+[WARN] [1742555291.072268543] [lms_mapper_node]: 等待数据中... 20/600秒
+[WARN] [1742555292.187122377] [lms_mapper_node]: 等待数据中... 40/600秒
+[WARN] [1742555293.333033086] [lms_mapper_node]: 等待数据中... 60/600秒

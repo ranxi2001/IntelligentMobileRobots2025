@@ -1,0 +1,3 @@
+[console_scripts]
+lms_to_rosbag = lms_data.lms_to_rosbag:main
+

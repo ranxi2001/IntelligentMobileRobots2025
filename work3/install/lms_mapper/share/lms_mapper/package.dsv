@@ -1,0 +1,15 @@
+source;share/lms_mapper/hook/path.ps1
+source;share/lms_mapper/hook/path.dsv
+source;share/lms_mapper/hook/path.sh
+source;share/lms_mapper/hook/pythonpath.ps1
+source;share/lms_mapper/hook/pythonpath.dsv
+source;share/lms_mapper/hook/pythonpath.sh
+source;share/lms_mapper/hook/pythonscriptspath.ps1
+source;share/lms_mapper/hook/pythonscriptspath.dsv
+source;share/lms_mapper/hook/pythonscriptspath.sh
+source;share/lms_mapper/hook/ament_prefix_path.ps1
+source;share/lms_mapper/hook/ament_prefix_path.dsv
+source;share/lms_mapper/hook/ament_prefix_path.sh
+source;../../build/lms_mapper/share/lms_mapper/hook/pythonpath_develop.ps1
+source;../../build/lms_mapper/share/lms_mapper/hook/pythonpath_develop.dsv
+source;../../build/lms_mapper/share/lms_mapper/hook/pythonpath_develop.sh
