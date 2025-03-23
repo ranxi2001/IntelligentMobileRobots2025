@@ -85,7 +85,11 @@ if (self.in_static_start_phase and self.processed_scans > 10) or static_duration
 
 ## 5. 结果分析
 
+栅格地图与小车行驶轨迹：
+![](.\map_checkpoint_29.png)
+
 最终地图效果显著改善：
+
 - 转弯处轮廓更加清晰可见
 - 起始位置的重复障碍点大幅减少
 - 整体地图质量更高，更准确地表示了环境
@@ -99,40 +103,6 @@ if (self.in_static_start_phase and self.processed_scans > 10) or static_duration
 - 添加地图滤波算法，进一步提高质量
 - 优化计算效率，减少内存占用
 - 添加更多可视化工具，辅助调试
-
-## 7. 国际化与多语言支持
-
-为了提高代码的通用性和可读性，对可视化部分进行了国际化处理，将显示在图表中的中文标题和标签替换为英文：
-
-### 7.1 修改内容
-
-1. **将图表标题从中文改为英文**
-   - 将"激光地图"改为"Laser Map"
-   - 将"应急地图 (由于错误自动保存)"改为"Emergency Map (Auto-saved due to error)"
-   - 将"占用栅格图"改为"Occupancy Grid Map"
-   - 将"机器人运动轨迹"改为"Robot Trajectory"
-
-2. **更新图例标签**
-   - 将"机器人轨迹"改为"Robot Trajectory"
-   - 将"起点"改为"Start"
-   - 将"终点"改为"End"
-   - 将"障碍物"改为"Obstacles"
-
-3. **更新坐标轴标签**
-   - 将"X 坐标 (米)"和"Y 坐标 (米)"改为"X Coordinate (m)"和"Y Coordinate (m)"
-   - 将"占用概率"改为"Occupancy Probability"
-
-### 7.2 字体处理
-
-移除了专门设置中文字体的代码，如`setup_chinese_font()`函数，改为使用通用的英文字体设置：
-
-```python
-# 设置默认字体为通用英文字体
-plt.rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial', 'Helvetica', 'sans-serif']
-plt.rcParams['axes.unicode_minus'] = False    # 用来正常显示负号
-```
-
-这些修改确保了生成的可视化图像能够正确显示英文标题和标签，提高了代码的国际化水平，同时保留了日志输出和代码注释中的中文信息，以便于中文环境下的开发和调试。
 
 ## 8. 转弯优化与地图质量提升
 
@@ -246,14 +216,5 @@ elif self.grid_map[x, y] == 0 and smoothed[x, y] > 0.7:
 5. **rosbag2**: 使用rosbag2进行数据记录和回放
 6. **坐标变换**: 使用tf2实现坐标系转换
 
-## 10. 与ROS1版本的对比
 
-与ROS1相比，ROS2具有以下优势：
-
-1. **实时性**: 基于DDS中间件，提供更好的实时性能
-2. **安全性**: 提供内置的安全功能
-3. **跨平台**: 支持更多操作系统
-4. **模块化**: 更加模块化的设计
-5. **QoS**: 提供服务质量设置
-6. **多节点支持**: 更好的多节点、多进程支持
 
